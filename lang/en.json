@@ -1,0 +1,64 @@
+{
+  "NSL": {
+    "ModuleTitle": "Nik's Settings Locks",
+
+    "LockType": {
+      "None": "Unlocked",
+      "Soft": "Soft Lock",
+      "Hard": "Hard Lock"
+    },
+
+    "Tooltip": {
+      "Unlocked": "Click to cycle lock state.\nUnlocked — players can freely change this setting.",
+      "Soft": "Soft Locked — the GM's value is applied once. Players may override it permanently.\nClick to cycle to Hard Lock. Right-click to unlock.",
+      "Hard": "Hard Locked — forced to the GM's value. Players cannot change it.\nClick to unlock. Right-click to cycle to Soft Lock.",
+      "LockedByGM": "This setting is locked by the GM.",
+      "SoftLockedByGM": "This setting was set by the GM. You may change it if you wish.",
+      "GMOnly": "Lock controls are only available to the GM."
+    },
+
+    "Notifications": {
+      "LockSet": "Lock set: {key} → {type}",
+      "LockRemoved": "Lock removed: {key}",
+      "LocksApplied": "Applied {count} locked setting(s).",
+      "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
+      "ExportSuccess": "Settings locks exported successfully.",
+      "ImportSuccess": "Imported {count} lock(s) successfully.",
+      "ImportFailed": "Failed to import locks: {error}",
+      "NoLocksToExport": "No locks to export.",
+      "ReloadRequired": "Some locked settings require a reload to take effect.",
+      "LocksEnforced": "Settings locks have been updated by the GM."
+    },
+
+    "Settings": {
+      "OpenManager": "Open Lock Manager",
+      "OpenManagerHint": "Opens a dedicated window for managing all settings locks."
+    },
+
+    "Manager": {
+      "Title": "Settings Lock Manager",
+      "FilterPlaceholder": "Filter settings…",
+      "ColumnSetting": "Setting",
+      "ColumnModule": "Module",
+      "ColumnValue": "Value",
+      "ColumnLock": "Lock",
+      "NoResults": "No lockable settings match your filter.",
+      "ExportButton": "Export Locks",
+      "ImportButton": "Import Locks",
+      "ClearAllButton": "Clear All Locks",
+      "ClearAllConfirm": "Are you sure you want to remove all settings locks?",
+      "ShowLockedOnly": "Show locked only"
+    },
+
+    "Export": {
+      "DialogTitle": "Export Settings Locks",
+      "Filename": "settings-locks"
+    },
+
+    "Import": {
+      "DialogTitle": "Import Settings Locks",
+      "ConfirmMessage": "This will import {count} lock(s). Existing locks for the same settings will be overwritten. Continue?",
+      "InvalidFormat": "Invalid file format. Expected a JSON file exported from Nik's Settings Locks."
+    }
+  }
+}

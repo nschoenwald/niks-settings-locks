@@ -1,0 +1,477 @@
+/* ==========================================================================
+   Nik's Settings Locks — Styles
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Theme-adaptive color tokens
+   Foundry V14 uses .theme-light / .theme-dark on application elements.
+   We define our own tokens so lock icons have sufficient contrast in both.
+   -------------------------------------------------------------------------- */
+
+:root {
+    /* Unlocked (muted) */
+    --nsl-color-unlocked: #999;
+    --nsl-color-unlocked-hover: #555;
+
+    /* Soft lock (amber) — light mode */
+    --nsl-color-soft: #b8860b;           /* dark goldenrod — WCAG AA on white */
+    --nsl-color-soft-hover: #996f00;
+    --nsl-color-soft-bg-hover: rgba(184, 134, 11, 0.08);
+
+    /* Hard lock (red) — light mode */
+    --nsl-color-hard: #c03030;           /* muted red — WCAG AA on white */
+    --nsl-color-hard-hover: #a02020;
+    --nsl-color-hard-bg-hover: rgba(192, 48, 48, 0.08);
+
+    /* Danger button */
+    --nsl-color-danger: #c03030;
+    --nsl-color-danger-border: rgba(192, 48, 48, 0.4);
+    --nsl-color-danger-bg-hover: rgba(192, 48, 48, 0.06);
+
+    /* UI surfaces — light mode */
+    --nsl-text-primary: #2c2c2c;
+    --nsl-text-secondary: #555;
+    --nsl-text-muted: #888;
+    --nsl-text-hint: #999;
+    --nsl-bg-surface: #fff;
+    --nsl-bg-header: #f5f5f0;
+    --nsl-bg-hover: rgba(0, 0, 0, 0.035);
+    --nsl-border: #ccc;
+    --nsl-border-light: #e0e0e0;
+    --nsl-input-bg: #fff;
+    --nsl-input-border: #aaa;
+    --nsl-btn-bg: transparent;
+    --nsl-btn-bg-hover: rgba(0, 0, 0, 0.05);
+    --nsl-btn-border: #aaa;
+    --nsl-btn-border-hover: #777;
+    --nsl-btn-text: #333;
+}
+
+/* Dark mode overrides */
+.theme-dark {
+    --nsl-color-unlocked: #888;
+    --nsl-color-unlocked-hover: #bbb;
+
+    --nsl-color-soft: #f0c040;           /* bright amber — visible on dark bg */
+    --nsl-color-soft-hover: #ffd866;
+    --nsl-color-soft-bg-hover: rgba(240, 192, 64, 0.12);
+
+    --nsl-color-hard: #f06060;           /* bright coral-red — visible on dark bg */
+    --nsl-color-hard-hover: #ff8080;
+    --nsl-color-hard-bg-hover: rgba(240, 96, 96, 0.12);
+
+    --nsl-color-danger: #f06060;
+    --nsl-color-danger-border: rgba(240, 96, 96, 0.45);
+    --nsl-color-danger-bg-hover: rgba(240, 96, 96, 0.1);
+
+    /* UI surfaces — dark mode */
+    --nsl-text-primary: #e0ddd5;
+    --nsl-text-secondary: #b0ada5;
+    --nsl-text-muted: #807d75;
+    --nsl-text-hint: #706d65;
+    --nsl-bg-surface: #1e1e1e;
+    --nsl-bg-header: #2a2a28;
+    --nsl-bg-hover: rgba(255, 255, 255, 0.04);
+    --nsl-border: #444;
+    --nsl-border-light: #333;
+    --nsl-input-bg: #2a2a28;
+    --nsl-input-border: #555;
+    --nsl-btn-bg: transparent;
+    --nsl-btn-bg-hover: rgba(255, 255, 255, 0.07);
+    --nsl-btn-border: #555;
+    --nsl-btn-border-hover: #888;
+    --nsl-btn-text: #d0cdc5;
+}
+
+/* --------------------------------------------------------------------------
+   Lock Icons (inline in SettingsConfig)
+   -------------------------------------------------------------------------- */
+
+.nsl-lock-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+    vertical-align: middle;
+    text-decoration: none;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.nsl-lock-icon:hover {
+    transform: scale(1.15);
+}
+
+.nsl-lock-icon i {
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* Unlocked state */
+.nsl-lock-icon.nsl-unlocked {
+    color: var(--nsl-color-unlocked);
+    opacity: 0.4;
+}
+
+.nsl-lock-icon.nsl-unlocked:hover {
+    opacity: 1;
+    color: var(--nsl-color-unlocked-hover);
+}
+
+/* Soft lock state */
+.nsl-lock-icon.nsl-soft {
+    color: var(--nsl-color-soft);
+}
+
+.nsl-lock-icon.nsl-soft:hover {
+    color: var(--nsl-color-soft-hover);
+}
+
+/* Hard lock state */
+.nsl-lock-icon.nsl-hard {
+    color: var(--nsl-color-hard);
+}
+
+.nsl-lock-icon.nsl-hard:hover {
+    color: var(--nsl-color-hard-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Disabled Inputs (hard-locked settings — all users)
+   Uses a pseudo-element overlay to block interaction instead of
+   input[disabled], which would break SettingsConfig form submission.
+   -------------------------------------------------------------------------- */
+
+.nsl-hard-locked {
+    position: relative;
+    opacity: 0.65;
+}
+
+.nsl-hard-locked::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: not-allowed;
+}
+
+/* Keep lock icons clickable above the overlay */
+.nsl-hard-locked .nsl-lock-icon {
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Module Settings Buttons (Export / Import in our module's section)
+   -------------------------------------------------------------------------- */
+
+.nsl-module-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.nsl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--nsl-btn-border);
+    border-radius: 4px;
+    background: var(--nsl-btn-bg);
+    color: var(--nsl-btn-text);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.nsl-btn:hover {
+    background: var(--nsl-btn-bg-hover);
+    border-color: var(--nsl-btn-border-hover);
+}
+
+.nsl-btn i {
+    font-size: 12px;
+}
+
+.nsl-btn-danger {
+    color: var(--nsl-color-danger);
+    border-color: var(--nsl-color-danger-border);
+}
+
+.nsl-btn-danger:hover {
+    background: var(--nsl-color-danger-bg-hover);
+    border-color: var(--nsl-color-danger);
+}
+
+/* --------------------------------------------------------------------------
+   Lock Manager Application
+   -------------------------------------------------------------------------- */
+
+.nsl-lock-manager {
+    font-size: 13px;
+}
+
+.nsl-manager-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 8px;
+    padding: 8px;
+}
+
+/* Toolbar */
+.nsl-manager-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.nsl-filter-input {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 5px 10px;
+    border: 1px solid var(--nsl-input-border);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--nsl-input-bg);
+    color: var(--nsl-text-primary);
+}
+
+.nsl-filter-input::placeholder {
+    color: var(--nsl-text-muted);
+}
+
+.nsl-show-locked-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--nsl-text-secondary);
+}
+
+.nsl-manager-buttons {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+/* Table */
+.nsl-table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--nsl-border);
+    border-radius: 4px;
+}
+
+.nsl-manager-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.nsl-manager-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--nsl-bg-header);
+}
+
+.nsl-manager-table th {
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--nsl-text-secondary);
+    border-bottom: 2px solid var(--nsl-border);
+    white-space: nowrap;
+}
+
+.nsl-manager-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--nsl-border-light);
+    vertical-align: top;
+}
+
+.nsl-manager-table tbody tr:hover {
+    background: var(--nsl-bg-hover);
+}
+
+/* Column widths */
+.nsl-col-lock {
+    width: 40px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.nsl-col-setting {
+    min-width: 180px;
+}
+
+.nsl-col-module {
+    width: 120px;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--nsl-text-muted);
+}
+
+.nsl-col-value {
+    width: 200px;
+    min-width: 160px;
+    vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   Value Controls (inputs/selects inside the Lock Manager table)
+   -------------------------------------------------------------------------- */
+
+.nsl-value-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.nsl-value-input {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid var(--nsl-input-border);
+    border-radius: 3px;
+    background: var(--nsl-input-bg);
+    color: var(--nsl-text-primary);
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.4;
+    transition: border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.nsl-value-input:focus {
+    outline: none;
+    border-color: var(--nsl-color-soft);
+}
+
+/* Checkbox */
+.nsl-value-checkbox {
+    width: auto;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* Select */
+select.nsl-value-input {
+    padding: 3px 4px;
+    cursor: pointer;
+}
+
+/* Color input */
+.nsl-value-color {
+    width: 36px;
+    height: 26px;
+    padding: 1px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* Range wrapper */
+.nsl-range-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.nsl-value-range {
+    flex: 1;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.nsl-range-value {
+    min-width: 28px;
+    text-align: right;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: var(--nsl-text-secondary);
+}
+
+/* Read-only state for unlocked settings */
+.nsl-readonly {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Setting name + hint */
+.nsl-setting-name {
+    display: block;
+    font-weight: 500;
+    color: var(--nsl-text-primary);
+}
+
+.nsl-setting-hint {
+    display: block;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--nsl-text-hint);
+    margin-top: 2px;
+}
+
+/* Lock control in table */
+.nsl-lock-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.15s ease, transform 0.15s ease;
+    text-decoration: none;
+}
+
+.nsl-lock-control:hover {
+    transform: scale(1.15);
+}
+
+.nsl-lock-control i {
+    font-size: 14px;
+}
+
+.nsl-lock-control.nsl-none {
+    color: var(--nsl-color-unlocked);
+}
+
+.nsl-lock-control.nsl-none:hover {
+    color: var(--nsl-color-unlocked-hover);
+    background: rgba(128, 128, 128, 0.1);
+}
+
+.nsl-lock-control.nsl-soft {
+    color: var(--nsl-color-soft);
+}
+
+.nsl-lock-control.nsl-soft:hover {
+    color: var(--nsl-color-soft-hover);
+    background: var(--nsl-color-soft-bg-hover);
+}
+
+.nsl-lock-control.nsl-hard {
+    color: var(--nsl-color-hard);
+}
+
+.nsl-lock-control.nsl-hard:hover {
+    color: var(--nsl-color-hard-hover);
+    background: var(--nsl-color-hard-bg-hover);
+}
