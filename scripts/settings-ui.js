@@ -325,7 +325,8 @@ function _injectModuleButtons(app, html) {
         const count = await reenforceSoftLocks();
         if (count > 0) {
             game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-            ui.notifications.info(game.i18n.format("NSL.Notifications.SoftLocksReenforced", { count }));
+            const reenforceKey = count === 1 ? "NSL.Notifications.SoftLocksReenforcedOne" : "NSL.Notifications.SoftLocksReenforcedMany";
+            ui.notifications.info(game.i18n.format(reenforceKey, { count }));
         } else {
             ui.notifications.warn(game.i18n.localize("NSL.Notifications.NoSoftLocks"));
         }

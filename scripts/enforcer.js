@@ -102,7 +102,8 @@ export async function applyLocks() {
 
     if (applied > 0) {
         console.log(`${MODULE_ID} | Applied ${applied} locked setting(s).`);
-        ui.notifications?.info(game.i18n.format("NSL.Notifications.LocksApplied", { count: applied }));
+        const localeKey = applied === 1 ? "NSL.Notifications.LocksAppliedOne" : "NSL.Notifications.LocksAppliedMany";
+        ui.notifications?.info(game.i18n.format(localeKey, { count: applied }));
     }
 
     if (needsReload) {

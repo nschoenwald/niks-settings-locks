@@ -20,15 +20,18 @@
     "Notifications": {
       "LockSet": "Lock set: {key} → {type}",
       "LockRemoved": "Lock removed: {key}",
-      "LocksApplied": "Applied {count} locked setting(s).",
+      "LocksAppliedOne": "Applied {count} locked setting.",
+      "LocksAppliedMany": "Applied {count} locked settings.",
       "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
       "ExportSuccess": "Settings locks exported successfully.",
-      "ImportSuccess": "Imported {count} lock(s) successfully.",
+      "ImportSuccessOne": "Imported {count} lock successfully.",
+      "ImportSuccessMany": "Imported {count} locks successfully.",
       "ImportFailed": "Failed to import locks: {error}",
       "NoLocksToExport": "No locks to export.",
       "ReloadRequired": "Some locked settings require a reload to take effect.",
       "LocksEnforced": "Settings locks have been updated by the GM.",
-      "SoftLocksReenforced": "Re-enforced {count} soft lock(s). Players will receive the updated values on their next login.",
+      "SoftLocksReenforcedOne": "Re-enforced {count} soft lock. Players will receive the updated value on their next login.",
+      "SoftLocksReenforcedMany": "Re-enforced {count} soft locks. Players will receive the updated values on their next login.",
       "NoSoftLocks": "No soft locks to re-enforce."
     },
 
@@ -60,7 +63,8 @@
 
     "Import": {
       "DialogTitle": "Import Settings Locks",
-      "ConfirmMessage": "This will import {count} lock(s). Existing locks for the same settings will be overwritten. Continue?",
+      "ConfirmMessageOne": "This will import {count} lock. Existing locks for the same settings will be overwritten. Continue?",
+      "ConfirmMessageMany": "This will import {count} locks. Existing locks for the same settings will be overwritten. Continue?",
       "InvalidFormat": "Invalid file format. Expected a JSON file exported from Nik's Settings Locks."
     }
   }

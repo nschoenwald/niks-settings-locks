@@ -209,9 +209,10 @@ export async function importLocks() {
                 const count = Object.keys(incoming).length;
 
                 // Confirm with the user
+                const confirmKey = count === 1 ? "NSL.Import.ConfirmMessageOne" : "NSL.Import.ConfirmMessageMany";
                 const confirmed = await foundry.applications.api.DialogV2.confirm({
                     window: { title: game.i18n.localize("NSL.Import.DialogTitle") },
-                    content: `<p>${game.i18n.format("NSL.Import.ConfirmMessage", { count })}</p>`,
+                    content: `<p>${game.i18n.format(confirmKey, { count })}</p>`,
                     defaultYes: false
                 });
 
@@ -234,7 +235,8 @@ export async function importLocks() {
                 // Broadcast to all connected clients
                 game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
-                ui.notifications.info(game.i18n.format("NSL.Notifications.ImportSuccess", { count }));
+                const successKey = count === 1 ? "NSL.Notifications.ImportSuccessOne" : "NSL.Notifications.ImportSuccessMany";
+                ui.notifications.info(game.i18n.format(successKey, { count }));
             } catch (err) {
                 console.error(`${MODULE_ID} | Import failed:`, err);
                 ui.notifications.error(game.i18n.format("NSL.Notifications.ImportFailed", { error: err.message }));
