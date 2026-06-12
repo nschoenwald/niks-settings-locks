@@ -143,6 +143,10 @@ function _wrapSettingsSet() {
     libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", function (wrapped, namespace, key, value, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, key, value, ...rest);
 
+        // GMs are exempt from runtime enforcement — they manage locks.
+        // Locks are still applied to GM clients on page load via applyLocks().
+        if (game.user?.isGM) return wrapped(namespace, key, value, ...rest);
+
         const settingKey = `${namespace}.${key}`;
         if (_hardLockedKeys.has(settingKey)) {
             const lock = getLock(settingKey);
