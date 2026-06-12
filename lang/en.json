@@ -9,27 +9,27 @@
     },
 
     "Tooltip": {
-      "Unlocked": "Click to cycle lock state.\nUnlocked — players can freely change this setting.",
+      "Unlocked": "Click to cycle lock state.\nUnlocked — players can freely change this.",
       "Soft": "Soft Locked — the GM's value is applied once. Players may override it permanently.\nClick to cycle to Hard Lock. Right-click to unlock.",
       "Hard": "Hard Locked — forced to the GM's value. Players cannot change it.\nClick to unlock. Right-click to cycle to Soft Lock.",
-      "LockedByGM": "This setting is locked by the GM.",
-      "SoftLockedByGM": "This setting was set by the GM. You may change it if you wish.",
+      "LockedByGM": "This is locked by the GM.",
+      "SoftLockedByGM": "This was set by the GM. You may change it if you wish.",
       "GMOnly": "Lock controls are only available to the GM."
     },
 
     "Notifications": {
       "LockSet": "Lock set: {key} → {type}",
       "LockRemoved": "Lock removed: {key}",
-      "LocksAppliedOne": "Applied {count} locked setting.",
-      "LocksAppliedMany": "Applied {count} locked settings.",
+      "LocksAppliedOne": "Applied {count} lock.",
+      "LocksAppliedMany": "Applied {count} locks.",
       "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
-      "ExportSuccess": "Settings locks exported successfully.",
+      "ExportSuccess": "Locks exported successfully.",
       "ImportSuccessOne": "Imported {count} lock successfully.",
       "ImportSuccessMany": "Imported {count} locks successfully.",
       "ImportFailed": "Failed to import locks: {error}",
       "NoLocksToExport": "No locks to export.",
       "ReloadRequired": "Some locked settings require a reload to take effect.",
-      "LocksEnforced": "Settings locks have been updated by the GM.",
+      "LocksEnforced": "Locks have been updated by the GM.",
       "SoftLocksReenforcedOne": "Re-enforced {count} soft lock. Players will receive the updated value on their next login.",
       "SoftLocksReenforcedMany": "Re-enforced {count} soft locks. Players will receive the updated values on their next login.",
       "NoSoftLocks": "No soft locks to re-enforce."
@@ -37,34 +37,37 @@
 
     "Settings": {
       "OpenManager": "Open Lock Manager",
-      "OpenManagerHint": "Opens a dedicated window for managing all settings locks."
+      "OpenManagerHint": "Opens a dedicated window for managing all settings and control locks."
     },
 
     "Manager": {
       "Title": "Settings Lock Manager",
-      "FilterPlaceholder": "Filter settings…",
-      "ColumnSetting": "Setting",
+      "FilterPlaceholder": "Filter settings and controls…",
+      "ColumnName": "Name",
       "ColumnModule": "Module",
+      "ColumnType": "Type",
       "ColumnValue": "Value",
       "ColumnLock": "Lock",
-      "NoResults": "No lockable settings match your filter.",
+      "TypeSetting": "Setting",
+      "TypeControl": "Control",
+      "NoResults": "No lockable items match your filter.",
       "ExportButton": "Export Locks",
       "ImportButton": "Import Locks",
       "ReenforceButton": "Re-enforce Soft Locks",
       "ClearAllButton": "Clear All Locks",
-      "ClearAllConfirm": "Are you sure you want to remove all settings locks?",
+      "ClearAllConfirm": "Are you sure you want to remove all locks?",
       "ShowLockedOnly": "Show locked only"
     },
 
     "Export": {
-      "DialogTitle": "Export Settings Locks",
+      "DialogTitle": "Export Locks",
       "Filename": "settings-locks"
     },
 
     "Import": {
-      "DialogTitle": "Import Settings Locks",
-      "ConfirmMessageOne": "This will import {count} lock. Existing locks for the same settings will be overwritten. Continue?",
-      "ConfirmMessageMany": "This will import {count} locks. Existing locks for the same settings will be overwritten. Continue?",
+      "DialogTitle": "Import Locks",
+      "ConfirmMessageOne": "This will import {count} lock. Existing locks for the same items will be overwritten. Continue?",
+      "ConfirmMessageMany": "This will import {count} locks. Existing locks for the same items will be overwritten. Continue?",
       "InvalidFormat": "Invalid file format. Expected a JSON file exported from Nik's Settings Locks."
     }
   }

@@ -475,3 +475,63 @@ select.nsl-value-input {
     color: var(--nsl-color-hard-hover);
     background: var(--nsl-color-hard-bg-hover);
 }
+
+/* --------------------------------------------------------------------------
+   Type Column (Setting vs Control badges)
+   -------------------------------------------------------------------------- */
+
+.nsl-col-type {
+    width: 36px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.nsl-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.nsl-type-badge.nsl-type-setting {
+    color: var(--nsl-text-secondary);
+}
+
+.nsl-type-badge.nsl-type-keybinding {
+    color: var(--nsl-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Keybinding Value Display (key combo badges)
+   -------------------------------------------------------------------------- */
+
+.nsl-keybinding-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.nsl-key-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    line-height: 1.4;
+    background: var(--nsl-input-bg);
+    border: 1px solid var(--nsl-input-border);
+    border-radius: 3px;
+    color: var(--nsl-text-primary);
+    white-space: nowrap;
+    box-shadow: 0 1px 0 var(--nsl-border);
+}
+
+.nsl-key-badge.nsl-key-unbound {
+    color: var(--nsl-text-muted);
+    border-style: dashed;
+    box-shadow: none;
+}
+

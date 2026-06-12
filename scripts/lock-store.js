@@ -13,6 +13,7 @@
 export const MODULE_ID = "niks-settings-locks";
 export const SETTING_LOCK_MAP = "lockMap";
 export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
+export const KB_PREFIX = "kb:";
 
 const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
 

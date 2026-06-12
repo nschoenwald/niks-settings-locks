@@ -8,6 +8,7 @@
 import { MODULE_ID, SETTING_LOCK_MAP } from "./lock-store.js";
 import { initEnforcer, applyLocks } from "./enforcer.js";
 import { initSettingsUI } from "./settings-ui.js";
+import { initControlsUI } from "./controls-ui.js";
 import { LockManagerApp } from "./lock-manager.js";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +48,8 @@ Hooks.once("init", () => {
 Hooks.once("setup", () => {
     // Initialize the settings UI hooks (renderSettingsConfig)
     initSettingsUI();
+    // Initialize the controls UI hooks (renderKeybindingsConfig)
+    initControlsUI();
 });
 
 Hooks.once("ready", async () => {

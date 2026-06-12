@@ -1,19 +1,21 @@
 # Nik's Settings Locks
 
-A [FoundryVTT](https://foundryvtt.com/) module that lets the GM **soft-lock** and **hard-lock** client and user settings for all connected clients.
+A [FoundryVTT](https://foundryvtt.com/) module that lets the GM **soft-lock** and **hard-lock** client settings and keybinding controls for all connected clients.
 
 Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
 ## Features
 
-- **Hard Lock** 🔴 — Forces the setting to the GM's value. Players (and other GM clients) cannot change it. The UI input is disabled and changes are blocked programmatically.
+- **Hard Lock** 🔴 — Forces the value to the GM's choice. Players cannot change it. The UI input is disabled and changes are blocked programmatically.
 - **Soft Lock** 🟡 — Applies the GM's value once. Players may override it permanently. If the GM re-enforces the soft lock, the new value is re-applied.
-- **Inline Lock Icons** — Lock toggle icons appear next to every client/user scoped setting in the Settings Configuration window.
-- **Lock Manager** — A dedicated management window (accessible from Module Settings) with a filterable table of all lockable settings and type-appropriate value editors (checkboxes, dropdowns, sliders, color pickers, etc.).
-- **Re-enforce Soft Locks** — A button to re-publish all soft locks with a new revision, so players receive the updated values on their next login.
-- **Export / Import** — Save and restore lock configurations as JSON files. Useful for migrating between worlds.
+- **Settings Support** — Lock any client/user scoped setting from any module, system, or core.
+- **Controls Support** — Lock keybinding (control) configurations, ensuring consistent hotkeys across all clients.
+- **Inline Lock Icons** — Lock toggle icons appear next to every lockable item in both the Settings Configuration and Configure Controls windows.
+- **Lock Manager** — A dedicated management window with a filterable table of all lockable settings and controls, type-appropriate value editors, and keybinding display.
+- **Re-enforce Soft Locks** — Re-publish all soft locks with a new revision so players receive the GM's values on their next login.
+- **Export / Import** — Save and restore lock configurations as JSON files. Includes both setting and keybinding locks.
 - **Clear All Locks** — Remove all locks at once from both the Settings Config and the Lock Manager.
-- **Live Enforcement** — When the GM changes a lock, all connected clients are updated immediately via socket — no manual reloads needed.
+- **Live Enforcement** — When the GM changes a lock, all connected clients are updated immediately via socket.
 
 ## Lock Behavior
 
@@ -28,7 +30,7 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
 ### GM Enforcement
 
-Locks are applied to **all clients** (including GMs) on page load. At runtime, GMs are exempt from the enforcement wrapper — they can freely change settings, remove locks, and save without being blocked. If a GM changes a hard-locked setting, the value reverts on the next page load.
+Locks are applied to **all clients** (including GMs) on page load. At runtime, GMs are exempt from the enforcement wrapper — they can freely change settings or controls, remove locks, and save without being blocked.
 
 ## Usage
 
@@ -38,12 +40,16 @@ Locks are applied to **all clients** (including GMs) on page load. At runtime, G
 3. **Click** to cycle: Unlocked → Soft → Hard → Unlocked
 4. **Right-click** to cycle backward: Unlocked → Hard → Soft → Unlocked
 5. Changes are saved immediately and broadcast to all clients
-6. Use the **Export**, **Import**, **Re-enforce Soft Locks**, and **Clear All** buttons in the module settings section
+
+### Inline Controls (Configure Controls)
+1. Open **Settings → Configure Controls**
+2. Lock icons appear next to each keybinding action
+3. Same click/right-click cycling as settings
 
 ### Lock Manager
 1. Open **Settings → Module Settings → Nik's Settings Locks → Open Lock Manager**
-2. Browse, filter, and manage locks for all settings in one place
-3. Edit locked values directly using type-appropriate input controls
+2. Browse, filter, and manage locks for all settings and controls in one place
+3. Settings show type-appropriate input controls; keybindings show key combo badges
 4. Use the toolbar buttons for export, import, re-enforce, and bulk clear
 
 ### Re-enforcing Soft Locks

@@ -1,13 +1,13 @@
 /**
  * Nik's Settings Locks — Lock Manager
  *
- * A dedicated ApplicationV2 window for managing all settings locks.
- * Provides a filterable list of all lockable settings with their current
+ * A dedicated ApplicationV2 window for managing all settings and keybinding locks.
+ * Provides a filterable list of all lockable items with their current
  * lock state, type-appropriate value editors, and bulk operations.
  */
 
 import {
-    MODULE_ID, SOCKET_CHANNEL,
+    MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
     getLockMap, setLock, removeLock, setLockMap,
     exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
@@ -37,19 +37,16 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     /** @override */
     async _prepareContext() {
         const map = getLockMap();
-        const settings = [];
+        const items = [];
 
+        // --- Gather Settings ---
         for (const [key, config] of game.settings.settings.entries()) {
-            // Only show client/user scoped settings
             if (config.scope !== "client" && config.scope !== "user") continue;
-
-            // Skip hidden settings (config: false)
             if (config.config === false) continue;
 
             const [namespace] = key.split(".");
             const lock = map[key] ?? null;
 
-            // Get current value
             let currentValue;
             try {
                 const parts = key.split(".");
@@ -58,7 +55,6 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 currentValue = undefined;
             }
 
-            // Determine module/system title
             let moduleTitle = namespace;
             if (namespace === "core") {
                 moduleTitle = "Core";
@@ -68,10 +64,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 else if (namespace === game.system.id) moduleTitle = game.system.title;
             }
 
-            // Determine the effective value (locked value if locked, else current)
             const effectiveValue = lock ? lock.value : currentValue;
 
-            // Build setting metadata for input rendering
             const settingMeta = {
                 type: _resolveType(config.type),
                 choices: config.choices ?? null,
@@ -82,13 +76,14 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                     || _looksLikeColor(effectiveValue)
             };
 
-            settings.push({
+            items.push({
                 key,
+                lockKey: key,
+                itemType: "setting",
                 namespace,
                 moduleTitle,
                 name: config.name ? game.i18n.localize(config.name) : key,
                 hint: config.hint ? game.i18n.localize(config.hint) : "",
-                scope: config.scope,
                 lockType: lock?.type ?? "none",
                 effectiveValue,
                 currentValue,
@@ -97,19 +92,65 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             });
         }
 
-        // Sort by module title, then setting name
-        settings.sort((a, b) => {
+        // --- Gather Keybindings ---
+        for (const [actionKey, actionConfig] of game.keybindings.actions.entries()) {
+            // Skip uneditable-only keybindings
+            if (actionConfig.editable?.length === 0 && actionConfig.uneditable?.length > 0) continue;
+
+            const lockKey = `${KB_PREFIX}${actionKey}`;
+            const lock = map[lockKey] ?? null;
+
+            const [namespace] = actionKey.split(".");
+
+            let moduleTitle = namespace;
+            if (namespace === "core") {
+                moduleTitle = "Core";
+            } else {
+                const mod = game.modules.get(namespace);
+                if (mod) moduleTitle = mod.title;
+                else if (namespace === game.system.id) moduleTitle = game.system.title;
+            }
+
+            // Get current bindings
+            let currentValue;
+            try {
+                const parts = actionKey.split(".");
+                currentValue = game.keybindings.get(parts[0], parts.slice(1).join("."));
+            } catch {
+                currentValue = [];
+            }
+
+            const effectiveValue = lock ? lock.value : currentValue;
+
+            items.push({
+                key: actionKey,
+                lockKey,
+                itemType: "keybinding",
+                namespace,
+                moduleTitle,
+                name: actionConfig.name ? game.i18n.localize(actionConfig.name) : actionKey,
+                hint: actionConfig.hint ? game.i18n.localize(actionConfig.hint) : "",
+                lockType: lock?.type ?? "none",
+                effectiveValue,
+                currentValue,
+                meta: { type: "Keybinding" },
+                requiresReload: false
+            });
+        }
+
+        // Sort by module title, then item name
+        items.sort((a, b) => {
             const modCmp = a.moduleTitle.localeCompare(b.moduleTitle);
             if (modCmp !== 0) return modCmp;
             return a.name.localeCompare(b.name);
         });
 
-        return { settings, map };
+        return { items, map };
     }
 
     /** @override */
     async _renderHTML(context) {
-        const { settings } = context;
+        const { items } = context;
         const container = document.createElement("div");
         container.classList.add("nsl-manager-content");
 
@@ -188,7 +229,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
         container.appendChild(toolbar);
 
-        // --- Settings Table ---
+        // --- Items Table ---
         const table = document.createElement("table");
         table.classList.add("nsl-manager-table");
 
@@ -196,7 +237,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         const thead = document.createElement("thead");
         thead.innerHTML = `<tr>
             <th class="nsl-col-lock">${game.i18n.localize("NSL.Manager.ColumnLock")}</th>
-            <th class="nsl-col-setting">${game.i18n.localize("NSL.Manager.ColumnSetting")}</th>
+            <th class="nsl-col-type">${game.i18n.localize("NSL.Manager.ColumnType")}</th>
+            <th class="nsl-col-setting">${game.i18n.localize("NSL.Manager.ColumnName")}</th>
             <th class="nsl-col-module">${game.i18n.localize("NSL.Manager.ColumnModule")}</th>
             <th class="nsl-col-value">${game.i18n.localize("NSL.Manager.ColumnValue")}</th>
         </tr>`;
@@ -204,8 +246,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
         // Body
         const tbody = document.createElement("tbody");
-        for (const setting of settings) {
-            const row = this._buildSettingRow(setting);
+        for (const item of items) {
+            const row = this._buildRow(item);
             tbody.appendChild(row);
         }
         table.appendChild(tbody);
@@ -227,28 +269,26 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     //  Row Builder
     // -----------------------------------------------------------------------
 
-    /**
-     * Build a single table row for a setting.
-     */
-    _buildSettingRow(setting) {
+    _buildRow(item) {
         const row = document.createElement("tr");
         row.classList.add("nsl-manager-row");
-        row.dataset.settingKey = setting.key;
-        row.dataset.lockType = setting.lockType;
-        row.dataset.searchText = `${setting.name} ${setting.moduleTitle} ${setting.key}`.toLowerCase();
+        row.dataset.lockKey = item.lockKey;
+        row.dataset.lockType = item.lockType;
+        row.dataset.itemType = item.itemType;
+        row.dataset.searchText = `${item.name} ${item.moduleTitle} ${item.key}`.toLowerCase();
 
         // --- Lock control cell ---
         const lockCell = document.createElement("td");
         lockCell.classList.add("nsl-col-lock");
         const lockBtn = document.createElement("a");
-        lockBtn.classList.add("nsl-lock-control", `nsl-${setting.lockType}`);
-        lockBtn.dataset.settingKey = setting.key;
+        lockBtn.classList.add("nsl-lock-control", `nsl-${item.lockType}`);
+        lockBtn.dataset.lockKey = item.lockKey;
 
         const lockIcon = document.createElement("i");
-        if (setting.lockType === "none") {
+        if (item.lockType === "none") {
             lockIcon.className = "fa-solid fa-lock-open";
             lockBtn.title = game.i18n.localize("NSL.LockType.None");
-        } else if (setting.lockType === "soft") {
+        } else if (item.lockType === "soft") {
             lockIcon.className = "fa-solid fa-lock";
             lockBtn.title = game.i18n.localize("NSL.LockType.Soft");
         } else {
@@ -259,37 +299,54 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
         lockBtn.addEventListener("click", async (e) => {
             e.preventDefault();
-            await this._cycleLock(setting.key, "forward");
+            await this._cycleLock(item.lockKey, item, "forward");
         });
         lockBtn.addEventListener("contextmenu", async (e) => {
             e.preventDefault();
-            await this._cycleLock(setting.key, "backward");
+            await this._cycleLock(item.lockKey, item, "backward");
         });
 
         lockCell.appendChild(lockBtn);
         row.appendChild(lockCell);
 
-        // --- Setting name cell ---
+        // --- Type cell ---
+        const typeCell = document.createElement("td");
+        typeCell.classList.add("nsl-col-type");
+        const typeBadge = document.createElement("span");
+        typeBadge.classList.add("nsl-type-badge", `nsl-type-${item.itemType}`);
+        if (item.itemType === "keybinding") {
+            typeBadge.innerHTML = `<i class="fa-solid fa-keyboard"></i>`;
+            typeBadge.title = game.i18n.localize("NSL.Manager.TypeControl");
+        } else {
+            typeBadge.innerHTML = `<i class="fa-solid fa-gear"></i>`;
+            typeBadge.title = game.i18n.localize("NSL.Manager.TypeSetting");
+        }
+        typeCell.appendChild(typeBadge);
+        row.appendChild(typeCell);
+
+        // --- Name cell ---
         const nameCell = document.createElement("td");
         nameCell.classList.add("nsl-col-setting");
-        nameCell.innerHTML = `<span class="nsl-setting-name">${setting.name}</span>`;
-        if (setting.hint) {
-            nameCell.innerHTML += `<span class="nsl-setting-hint">${setting.hint}</span>`;
+        nameCell.innerHTML = `<span class="nsl-setting-name">${item.name}</span>`;
+        if (item.hint) {
+            nameCell.innerHTML += `<span class="nsl-setting-hint">${item.hint}</span>`;
         }
         row.appendChild(nameCell);
 
         // --- Module cell ---
         const modCell = document.createElement("td");
         modCell.classList.add("nsl-col-module");
-        modCell.textContent = setting.moduleTitle;
+        modCell.textContent = item.moduleTitle;
         row.appendChild(modCell);
 
-        // --- Value cell (with proper input control) ---
+        // --- Value cell ---
         const valCell = document.createElement("td");
         valCell.classList.add("nsl-col-value");
 
-        const isLocked = setting.lockType !== "none";
-        const inputEl = this._buildValueInput(setting, isLocked);
+        const isLocked = item.lockType !== "none";
+        const inputEl = item.itemType === "keybinding"
+            ? this._buildKeybindingDisplay(item, isLocked)
+            : this._buildValueInput(item, isLocked);
         valCell.appendChild(inputEl);
         row.appendChild(valCell);
 
@@ -297,14 +354,11 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     // -----------------------------------------------------------------------
-    //  Value Input Builder
+    //  Value Input Builder (Settings)
     // -----------------------------------------------------------------------
 
-    /**
-     * Build the appropriate input control for a setting based on its metadata.
-     */
-    _buildValueInput(setting, isLocked) {
-        const { meta, effectiveValue, key } = setting;
+    _buildValueInput(item, isLocked) {
+        const { meta, effectiveValue, lockKey } = item;
         const wrapper = document.createElement("div");
         wrapper.classList.add("nsl-value-control");
 
@@ -314,8 +368,6 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         if (meta.choices) {
             input = document.createElement("select");
             input.classList.add("nsl-value-input");
-
-            // Localize choice labels if they look like i18n keys
             for (const [optValue, optLabel] of Object.entries(meta.choices)) {
                 const option = document.createElement("option");
                 option.value = optValue;
@@ -323,8 +375,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 if (String(effectiveValue) === String(optValue)) option.selected = true;
                 input.appendChild(option);
             }
-
-            input.addEventListener("change", () => this._onValueChange(key, input.value));
+            input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
         }
 
         // --- Boolean checkbox ---
@@ -333,15 +384,13 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.type = "checkbox";
             input.classList.add("nsl-value-input", "nsl-value-checkbox");
             input.checked = !!effectiveValue;
-
-            input.addEventListener("change", () => this._onValueChange(key, input.checked));
+            input.addEventListener("change", () => this._onValueChange(lockKey, input.checked));
         }
 
         // --- Number with range ---
         else if (meta.type === "Number" && meta.range) {
             const rangeWrapper = document.createElement("div");
             rangeWrapper.classList.add("nsl-range-wrapper");
-
             const rangeInput = document.createElement("input");
             rangeInput.type = "range";
             rangeInput.classList.add("nsl-value-input", "nsl-value-range");
@@ -349,18 +398,11 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             rangeInput.max = meta.range.max ?? 100;
             rangeInput.step = meta.range.step ?? 1;
             rangeInput.value = effectiveValue ?? 0;
-
             const numberDisplay = document.createElement("span");
             numberDisplay.classList.add("nsl-range-value");
             numberDisplay.textContent = effectiveValue ?? 0;
-
-            rangeInput.addEventListener("input", () => {
-                numberDisplay.textContent = rangeInput.value;
-            });
-            rangeInput.addEventListener("change", () => {
-                this._onValueChange(key, Number(rangeInput.value));
-            });
-
+            rangeInput.addEventListener("input", () => { numberDisplay.textContent = rangeInput.value; });
+            rangeInput.addEventListener("change", () => { this._onValueChange(lockKey, Number(rangeInput.value)); });
             rangeWrapper.append(rangeInput, numberDisplay);
             input = rangeWrapper;
         }
@@ -371,8 +413,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.type = "number";
             input.classList.add("nsl-value-input");
             input.value = effectiveValue ?? 0;
-
-            input.addEventListener("change", () => this._onValueChange(key, Number(input.value)));
+            input.addEventListener("change", () => this._onValueChange(lockKey, Number(input.value)));
         }
 
         // --- Color ---
@@ -381,8 +422,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.type = "color";
             input.classList.add("nsl-value-input", "nsl-value-color");
             input.value = effectiveValue || "#000000";
-
-            input.addEventListener("change", () => this._onValueChange(key, input.value));
+            input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
         }
 
         // --- String (default) ---
@@ -391,16 +431,44 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.type = "text";
             input.classList.add("nsl-value-input");
             input.value = effectiveValue ?? "";
-
-            input.addEventListener("change", () => this._onValueChange(key, input.value));
+            input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
         }
 
-        // Disable input when setting is not locked (show as read-only preview)
-        if (!isLocked) {
-            _setReadOnly(input, true);
-        }
-
+        if (!isLocked) _setReadOnly(input, true);
         wrapper.appendChild(input);
+        return wrapper;
+    }
+
+    // -----------------------------------------------------------------------
+    //  Keybinding Value Display
+    // -----------------------------------------------------------------------
+
+    _buildKeybindingDisplay(item, isLocked) {
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("nsl-value-control", "nsl-keybinding-value");
+
+        const bindings = item.effectiveValue;
+        const badgeContainer = document.createElement("div");
+        badgeContainer.classList.add("nsl-keybinding-badges");
+
+        if (Array.isArray(bindings) && bindings.length > 0) {
+            for (const binding of bindings) {
+                const badge = document.createElement("span");
+                badge.classList.add("nsl-key-badge");
+                badge.textContent = _formatBinding(binding);
+                badgeContainer.appendChild(badge);
+            }
+        } else {
+            const empty = document.createElement("span");
+            empty.classList.add("nsl-key-badge", "nsl-key-unbound");
+            empty.textContent = "—";
+            badgeContainer.appendChild(empty);
+        }
+
+        wrapper.appendChild(badgeContainer);
+
+        if (!isLocked) wrapper.classList.add("nsl-readonly");
+
         return wrapper;
     }
 
@@ -408,16 +476,12 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     //  Value Change Handler
     // -----------------------------------------------------------------------
 
-    /**
-     * Handle value changes from the input controls.
-     * Updates the locked value immediately.
-     */
-    async _onValueChange(settingKey, newValue) {
+    async _onValueChange(lockKey, newValue) {
         const map = getLockMap();
-        const lock = map[settingKey];
-        if (!lock) return; // Only update locked settings
+        const lock = map[lockKey];
+        if (!lock) return;
 
-        await setLock(settingKey, lock.type, newValue);
+        await setLock(lockKey, lock.type, newValue);
         refreshHardLockSet();
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
     }
@@ -448,28 +512,35 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     //  Lock Cycling
     // -----------------------------------------------------------------------
 
-    async _cycleLock(settingKey, direction) {
+    async _cycleLock(lockKey, item, direction) {
         const map = getLockMap();
-        const lock = map[settingKey] ?? null;
-        const [namespace, ...keyParts] = settingKey.split(".");
-        const key = keyParts.join(".");
-        const value = game.settings.get(namespace, key);
+        const lock = map[lockKey] ?? null;
+
+        // Get current value based on item type
+        let value;
+        if (item.itemType === "keybinding") {
+            const [namespace, ...actionParts] = item.key.split(".");
+            value = game.keybindings.get(namespace, actionParts.join("."));
+        } else {
+            const [namespace, ...keyParts] = item.key.split(".");
+            value = game.settings.get(namespace, keyParts.join("."));
+        }
 
         if (direction === "forward") {
             if (!lock) {
-                await setLock(settingKey, "soft", value);
+                await setLock(lockKey, "soft", value);
             } else if (lock.type === "soft") {
-                await setLock(settingKey, "hard", value);
+                await setLock(lockKey, "hard", value);
             } else {
-                await removeLock(settingKey);
+                await removeLock(lockKey);
             }
         } else {
             if (!lock) {
-                await setLock(settingKey, "hard", value);
+                await setLock(lockKey, "hard", value);
             } else if (lock.type === "hard") {
-                await setLock(settingKey, "soft", value);
+                await setLock(lockKey, "soft", value);
             } else {
-                await removeLock(settingKey);
+                await removeLock(lockKey);
             }
         }
 
@@ -483,9 +554,6 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 //  Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Resolve a Foundry setting type to a simple string.
- */
 function _resolveType(type) {
     if (!type) return "String";
     if (type === Boolean || type?.name === "Boolean") return "Boolean";
@@ -496,34 +564,53 @@ function _resolveType(type) {
     return "String";
 }
 
-/**
- * Check if a value looks like a CSS color string.
- */
 function _looksLikeColor(value) {
     if (typeof value !== "string") return false;
     return /^#[0-9a-fA-F]{6,8}$/.test(value);
 }
 
 /**
- * Set an input element (or wrapper containing inputs) to read-only.
+ * Format a keybinding binding object to a human-readable string.
+ * e.g. { key: "KeyA", modifiers: ["CONTROL", "SHIFT"] } → "Ctrl + Shift + A"
  */
+function _formatBinding(binding) {
+    if (!binding || !binding.key) return "—";
+    const parts = [];
+    if (binding.modifiers) {
+        for (const mod of binding.modifiers) {
+            if (mod === "CONTROL") parts.push("Ctrl");
+            else if (mod === "SHIFT") parts.push("Shift");
+            else if (mod === "ALT") parts.push("Alt");
+            else if (mod === "META") parts.push("Meta");
+            else parts.push(mod);
+        }
+    }
+    // Convert KeyboardEvent.code to a readable key name
+    let keyName = binding.key;
+    if (keyName.startsWith("Key")) keyName = keyName.slice(3);
+    else if (keyName.startsWith("Digit")) keyName = keyName.slice(5);
+    else if (keyName.startsWith("Numpad")) keyName = "Num" + keyName.slice(6);
+    else if (keyName === "Space") keyName = "Space";
+    else if (keyName === "ArrowUp") keyName = "↑";
+    else if (keyName === "ArrowDown") keyName = "↓";
+    else if (keyName === "ArrowLeft") keyName = "←";
+    else if (keyName === "ArrowRight") keyName = "→";
+
+    parts.push(keyName);
+    return parts.join(" + ");
+}
+
 function _setReadOnly(el, readOnly) {
     if (!el) return;
-
-    // If the element is a wrapper, find all inputs inside
     const inputs = el.querySelectorAll ? el.querySelectorAll("input, select, textarea") : [];
     const targets = inputs.length > 0 ? inputs : [el];
 
     for (const target of targets) {
         if (readOnly) {
             target.classList.add("nsl-readonly");
-            if (target.tagName === "SELECT") {
-                target.disabled = true;
-            } else if (target.type === "checkbox") {
-                target.disabled = true;
-            } else {
-                target.readOnly = true;
-            }
+            if (target.tagName === "SELECT") target.disabled = true;
+            else if (target.type === "checkbox") target.disabled = true;
+            else target.readOnly = true;
         } else {
             target.classList.remove("nsl-readonly");
             target.disabled = false;

@@ -10,7 +10,7 @@ import {
     getLockMap, setLock, removeLock, setLockMap,
     exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
-import { isHardLocked, refreshHardLockSet, applyLocks } from "./enforcer.js";
+import { refreshHardLockSet } from "./enforcer.js";
 
 // ---------------------------------------------------------------------------
 //  Public API

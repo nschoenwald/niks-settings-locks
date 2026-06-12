@@ -3,19 +3,20 @@
  *
  * Client-side enforcement logic. Responsibilities:
  * 1. On "ready": apply all locked values from the world lock map.
- * 2. Runtime: wrap ClientSettings.prototype.set to block hard-locked changes.
+ * 2. Runtime: wrap ClientSettings.prototype.set and
+ *    ClientKeybindings.prototype.set to block hard-locked changes.
  * 3. Socket listener: re-enforce when the GM changes locks.
  */
 
 import {
-    MODULE_ID, SOCKET_CHANNEL,
+    MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
     getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied
 } from "./lock-store.js";
 
-/** Track which settings are currently hard-locked for runtime prevention. */
+/** Track which keys (settings + keybindings) are currently hard-locked. */
 const _hardLockedKeys = new Set();
 
-/** Flag to bypass our own set() wrapper when we apply locks internally. */
+/** Flag to bypass our own set() wrappers when we apply locks internally. */
 let _bypassEnforcement = false;
 
 // ---------------------------------------------------------------------------
@@ -24,11 +25,12 @@ let _bypassEnforcement = false;
 
 /**
  * Initialize enforcement. Call once during module setup.
- * - Wraps game.settings.set for runtime prevention.
+ * - Wraps game.settings.set and game.keybindings.set for runtime prevention.
  * - Registers the socket listener.
  */
 export function initEnforcer() {
     _wrapSettingsSet();
+    _wrapKeybindingsSet();
     _registerSocketListener();
 }
 
@@ -47,61 +49,23 @@ export async function applyLocks() {
     // Clear the hard-lock set and rebuild it
     _hardLockedKeys.clear();
 
-    for (const [settingKey, lock] of entries) {
+    for (const [lockKey, lock] of entries) {
         const { type, value, rev } = lock;
-        const [namespace, ...keyParts] = settingKey.split(".");
-        const key = keyParts.join(".");
 
-        // Check the setting exists and is client/user scoped
-        const config = game.settings.settings.get(settingKey);
-        if (!config) continue;
-        if (config.scope !== "client" && config.scope !== "user") continue;
+        // Determine if this is a keybinding or a setting
+        const isKeybinding = lockKey.startsWith(KB_PREFIX);
 
-        // Hard locks: always enforce
-        if (type === "hard") {
-            _hardLockedKeys.add(settingKey);
-            try {
-                const current = game.settings.get(namespace, key);
-                if (!_valuesEqual(current, value)) {
-                    _bypassEnforcement = true;
-                    try {
-                        await game.settings.set(namespace, key, value);
-                    } finally {
-                        _bypassEnforcement = false;
-                    }
-                    applied++;
-                    if (config.requiresReload) needsReload = true;
-                }
-            } catch (err) {
-                console.warn(`${MODULE_ID} | Failed to enforce hard lock on ${settingKey}:`, err);
-            }
-        }
-
-        // Soft locks: only apply if the revision is newer than what this client has seen
-        else if (type === "soft") {
-            if (shouldApplySoftLock(settingKey, rev)) {
-                try {
-                    const current = game.settings.get(namespace, key);
-                    if (!_valuesEqual(current, value)) {
-                        _bypassEnforcement = true;
-                        try {
-                            await game.settings.set(namespace, key, value);
-                        } finally {
-                            _bypassEnforcement = false;
-                        }
-                        applied++;
-                        if (config.requiresReload) needsReload = true;
-                    }
-                    markSoftLockApplied(settingKey, rev);
-                } catch (err) {
-                    console.warn(`${MODULE_ID} | Failed to enforce soft lock on ${settingKey}:`, err);
-                }
-            }
+        if (isKeybinding) {
+            applied += await _applyKeybindingLock(lockKey, lock);
+        } else {
+            const result = await _applySettingLock(lockKey, lock);
+            applied += result.applied;
+            if (result.needsReload) needsReload = true;
         }
     }
 
     if (applied > 0) {
-        console.log(`${MODULE_ID} | Applied ${applied} locked setting(s).`);
+        console.log(`${MODULE_ID} | Applied ${applied} locked item(s).`);
         const localeKey = applied === 1 ? "NSL.Notifications.LocksAppliedOne" : "NSL.Notifications.LocksAppliedMany";
         ui.notifications?.info(game.i18n.format(localeKey, { count: applied }));
     }
@@ -124,36 +88,137 @@ export function refreshHardLockSet() {
 }
 
 /**
- * Check if a setting is currently hard-locked.
- * @param {string} settingKey  "namespace.key"
+ * Check if a key (setting or keybinding) is currently hard-locked.
+ * @param {string} key  "namespace.key" or "kb:namespace.action"
  * @returns {boolean}
  */
-export function isHardLocked(settingKey) {
-    return _hardLockedKeys.has(settingKey);
+export function isHardLocked(key) {
+    return _hardLockedKeys.has(key);
 }
 
 // ---------------------------------------------------------------------------
-//  Internals
+//  Setting Lock Application
+// ---------------------------------------------------------------------------
+
+async function _applySettingLock(settingKey, lock) {
+    const { type, value, rev } = lock;
+    const [namespace, ...keyParts] = settingKey.split(".");
+    const key = keyParts.join(".");
+
+    const config = game.settings.settings.get(settingKey);
+    if (!config) return { applied: 0, needsReload: false };
+    if (config.scope !== "client" && config.scope !== "user") return { applied: 0, needsReload: false };
+
+    if (type === "hard") {
+        _hardLockedKeys.add(settingKey);
+        try {
+            const current = game.settings.get(namespace, key);
+            if (!_valuesEqual(current, value)) {
+                _bypassEnforcement = true;
+                try {
+                    await game.settings.set(namespace, key, value);
+                } finally {
+                    _bypassEnforcement = false;
+                }
+                return { applied: 1, needsReload: !!config.requiresReload };
+            }
+        } catch (err) {
+            console.warn(`${MODULE_ID} | Failed to enforce hard lock on ${settingKey}:`, err);
+        }
+    } else if (type === "soft") {
+        if (shouldApplySoftLock(settingKey, rev)) {
+            try {
+                const current = game.settings.get(namespace, key);
+                if (!_valuesEqual(current, value)) {
+                    _bypassEnforcement = true;
+                    try {
+                        await game.settings.set(namespace, key, value);
+                    } finally {
+                        _bypassEnforcement = false;
+                    }
+                    markSoftLockApplied(settingKey, rev);
+                    return { applied: 1, needsReload: !!config.requiresReload };
+                }
+                markSoftLockApplied(settingKey, rev);
+            } catch (err) {
+                console.warn(`${MODULE_ID} | Failed to enforce soft lock on ${settingKey}:`, err);
+            }
+        }
+    }
+
+    return { applied: 0, needsReload: false };
+}
+
+// ---------------------------------------------------------------------------
+//  Keybinding Lock Application
+// ---------------------------------------------------------------------------
+
+async function _applyKeybindingLock(lockKey, lock) {
+    const { type, value, rev } = lock;
+    const actionKey = lockKey.slice(KB_PREFIX.length); // remove "kb:" prefix
+    const [namespace, ...actionParts] = actionKey.split(".");
+    const action = actionParts.join(".");
+
+    // Verify the keybinding action exists
+    const actionConfig = game.keybindings.actions.get(actionKey);
+    if (!actionConfig) return 0;
+
+    if (type === "hard") {
+        _hardLockedKeys.add(lockKey);
+        try {
+            const current = game.keybindings.get(namespace, action);
+            if (!_valuesEqual(current, value)) {
+                _bypassEnforcement = true;
+                try {
+                    await game.keybindings.set(namespace, action, value);
+                } finally {
+                    _bypassEnforcement = false;
+                }
+                return 1;
+            }
+        } catch (err) {
+            console.warn(`${MODULE_ID} | Failed to enforce hard lock on keybinding ${actionKey}:`, err);
+        }
+    } else if (type === "soft") {
+        if (shouldApplySoftLock(lockKey, rev)) {
+            try {
+                const current = game.keybindings.get(namespace, action);
+                if (!_valuesEqual(current, value)) {
+                    _bypassEnforcement = true;
+                    try {
+                        await game.keybindings.set(namespace, action, value);
+                    } finally {
+                        _bypassEnforcement = false;
+                    }
+                    markSoftLockApplied(lockKey, rev);
+                    return 1;
+                }
+                markSoftLockApplied(lockKey, rev);
+            } catch (err) {
+                console.warn(`${MODULE_ID} | Failed to enforce soft lock on keybinding ${actionKey}:`, err);
+            }
+        }
+    }
+
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+//  Internals — Wrappers
 // ---------------------------------------------------------------------------
 
 /**
  * Wrap ClientSettings.prototype.set to block hard-locked setting changes.
- * Uses libWrapper for safe, compatible method wrapping in V14.
  */
 function _wrapSettingsSet() {
     libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", function (wrapped, namespace, key, value, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, key, value, ...rest);
-
-        // GMs are exempt from runtime enforcement — they manage locks.
-        // Locks are still applied to GM clients on page load via applyLocks().
         if (game.user?.isGM) return wrapped(namespace, key, value, ...rest);
 
         const settingKey = `${namespace}.${key}`;
         if (_hardLockedKeys.has(settingKey)) {
             const lock = getLock(settingKey);
 
-            // Allow writes that match the locked value (e.g. SettingsConfig
-            // re-submitting all settings on save). Only block actual changes.
             if (lock && _valuesEqual(value, lock.value)) {
                 return wrapped(namespace, key, value, ...rest);
             }
@@ -164,13 +229,41 @@ function _wrapSettingsSet() {
                 : settingKey;
             ui.notifications.warn(game.i18n.format("NSL.Notifications.HardLockBlocked", { name }));
 
-            // Write the locked value instead of the attempted value,
-            // so the form submission completes without errors.
             if (lock) return wrapped(namespace, key, lock.value, ...rest);
             return;
         }
 
         return wrapped(namespace, key, value, ...rest);
+    }, "WRAPPER");
+}
+
+/**
+ * Wrap ClientKeybindings.prototype.set to block hard-locked keybinding changes.
+ */
+function _wrapKeybindingsSet() {
+    libWrapper.register(MODULE_ID, "ClientKeybindings.prototype.set", function (wrapped, namespace, action, bindings, ...rest) {
+        if (_bypassEnforcement) return wrapped(namespace, action, bindings, ...rest);
+        if (game.user?.isGM) return wrapped(namespace, action, bindings, ...rest);
+
+        const lockKey = `${KB_PREFIX}${namespace}.${action}`;
+        if (_hardLockedKeys.has(lockKey)) {
+            const lock = getLock(lockKey);
+
+            if (lock && _valuesEqual(bindings, lock.value)) {
+                return wrapped(namespace, action, bindings, ...rest);
+            }
+
+            const actionConfig = game.keybindings.actions.get(`${namespace}.${action}`);
+            const name = actionConfig?.name
+                ? game.i18n.localize(actionConfig.name)
+                : `${namespace}.${action}`;
+            ui.notifications.warn(game.i18n.format("NSL.Notifications.HardLockBlocked", { name }));
+
+            if (lock) return wrapped(namespace, action, lock.value, ...rest);
+            return;
+        }
+
+        return wrapped(namespace, action, bindings, ...rest);
     }, "WRAPPER");
 }
 
@@ -183,21 +276,19 @@ function _registerSocketListener() {
             console.log(`${MODULE_ID} | Received lock update from GM, re-applying...`);
             ui.notifications?.info(game.i18n.localize("NSL.Notifications.LocksEnforced"));
             await applyLocks();
-            // Re-render the settings config if it's open (V14 ApplicationV2 API)
+            // Re-render open config windows
             try {
-                for (const app of SettingsConfig.instances()) {
-                    app.render();
-                    break;
-                }
-            } catch {
-                // SettingsConfig may not be open
-            }
+                for (const app of SettingsConfig.instances()) { app.render(); break; }
+            } catch { /* not open */ }
+            try {
+                for (const app of KeybindingsConfig.instances()) { app.render(); break; }
+            } catch { /* not open */ }
         }
     });
 }
 
 /**
- * Deep equality check for setting values.
+ * Deep equality check for setting/keybinding values.
  */
 function _valuesEqual(a, b) {
     if (a === b) return true;
