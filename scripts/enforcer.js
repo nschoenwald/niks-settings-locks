@@ -281,7 +281,7 @@ function _registerSocketListener() {
                 for (const app of SettingsConfig.instances()) { app.render(); break; }
             } catch { /* not open */ }
             try {
-                for (const app of KeybindingsConfig.instances()) { app.render(); break; }
+                for (const app of ControlsConfig.instances()) { app.render(); break; }
             } catch { /* not open */ }
         }
     });
