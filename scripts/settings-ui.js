@@ -7,7 +7,8 @@
 
 import {
     MODULE_ID, SOCKET_CHANNEL,
-    getLockMap, setLock, removeLock, setLockMap, exportLocks, importLocks
+    getLockMap, setLock, removeLock, setLockMap,
+    exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
 import { isHardLocked, refreshHardLockSet, applyLocks } from "./enforcer.js";
 
@@ -315,8 +316,24 @@ function _injectModuleButtons(app, html) {
         app.render();
     });
 
+    const reenforceBtn = document.createElement("button");
+    reenforceBtn.type = "button";
+    reenforceBtn.classList.add("nsl-btn", "nsl-reenforce-btn");
+    reenforceBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> ${game.i18n.localize("NSL.Manager.ReenforceButton")}`;
+    reenforceBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const count = await reenforceSoftLocks();
+        if (count > 0) {
+            game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+            ui.notifications.info(game.i18n.format("NSL.Notifications.SoftLocksReenforced", { count }));
+        } else {
+            ui.notifications.warn(game.i18n.localize("NSL.Notifications.NoSoftLocks"));
+        }
+    });
+
     container.appendChild(exportBtn);
     container.appendChild(importBtn);
+    container.appendChild(reenforceBtn);
     container.appendChild(clearBtn);
 
     // Insert after the module section element

@@ -27,7 +27,9 @@
       "ImportFailed": "Failed to import locks: {error}",
       "NoLocksToExport": "No locks to export.",
       "ReloadRequired": "Some locked settings require a reload to take effect.",
-      "LocksEnforced": "Settings locks have been updated by the GM."
+      "LocksEnforced": "Settings locks have been updated by the GM.",
+      "SoftLocksReenforced": "Re-enforced {count} soft lock(s). Players will receive the updated values on their next login.",
+      "NoSoftLocks": "No soft locks to re-enforce."
     },
 
     "Settings": {
@@ -45,6 +47,7 @@
       "NoResults": "No lockable settings match your filter.",
       "ExportButton": "Export Locks",
       "ImportButton": "Import Locks",
+      "ReenforceButton": "Re-enforce Soft Locks",
       "ClearAllButton": "Clear All Locks",
       "ClearAllConfirm": "Are you sure you want to remove all settings locks?",
       "ShowLockedOnly": "Show locked only"

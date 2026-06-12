@@ -126,6 +126,28 @@ export function clearSoftLockRev(settingKey) {
 }
 
 // ---------------------------------------------------------------------------
+//  Re-enforce Soft Locks
+// ---------------------------------------------------------------------------
+
+/**
+ * Bump the revision number of every soft lock so that all player clients
+ * will re-apply them on their next login/reload.
+ * @returns {Promise<number>} The number of soft locks re-enforced.
+ */
+export async function reenforceSoftLocks() {
+    const map = getLockMap();
+    let count = 0;
+    for (const [key, lock] of Object.entries(map)) {
+        if (lock.type === "soft") {
+            lock.rev = (lock.rev ?? 0) + 1;
+            count++;
+        }
+    }
+    if (count > 0) await setLockMap(map);
+    return count;
+}
+
+// ---------------------------------------------------------------------------
 //  Export / Import
 // ---------------------------------------------------------------------------
 

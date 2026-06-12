@@ -9,7 +9,7 @@
 import {
     MODULE_ID, SOCKET_CHANNEL,
     getLockMap, setLock, removeLock, setLockMap,
-    exportLocks, importLocks
+    exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
 import { refreshHardLockSet } from "./enforcer.js";
 
@@ -168,7 +168,21 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             this.render();
         });
 
-        btnBar.append(exportBtn, importBtn, clearBtn);
+        const reenforceBtn = document.createElement("button");
+        reenforceBtn.type = "button";
+        reenforceBtn.classList.add("nsl-btn");
+        reenforceBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> ${game.i18n.localize("NSL.Manager.ReenforceButton")}`;
+        reenforceBtn.addEventListener("click", async () => {
+            const count = await reenforceSoftLocks();
+            if (count > 0) {
+                game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+                ui.notifications.info(game.i18n.format("NSL.Notifications.SoftLocksReenforced", { count }));
+            } else {
+                ui.notifications.warn(game.i18n.localize("NSL.Notifications.NoSoftLocks"));
+            }
+        });
+
+        btnBar.append(exportBtn, importBtn, reenforceBtn, clearBtn);
         toolbar.append(btnBar);
 
         container.appendChild(toolbar);
