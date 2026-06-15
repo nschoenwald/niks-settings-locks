@@ -145,12 +145,35 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             return a.name.localeCompare(b.name);
         });
 
-        return { items, map };
+        // --- Find Orphaned Locks ---
+        // Locks whose setting/keybinding no longer exists (module uninstalled, etc.)
+        const knownLockKeys = new Set(items.map(i => i.lockKey));
+        const orphaned = [];
+        for (const [lockKey, lock] of Object.entries(map)) {
+            if (knownLockKeys.has(lockKey)) continue;
+
+            const isKeybinding = lockKey.startsWith(KB_PREFIX);
+            const rawKey = isKeybinding ? lockKey.slice(KB_PREFIX.length) : lockKey;
+            const [namespace] = rawKey.split(".");
+
+            orphaned.push({
+                lockKey,
+                key: rawKey,
+                itemType: isKeybinding ? "keybinding" : "setting",
+                namespace,
+                lockType: lock.type,
+                effectiveValue: lock.value
+            });
+        }
+
+        orphaned.sort((a, b) => a.key.localeCompare(b.key));
+
+        return { items, orphaned, map };
     }
 
     /** @override */
     async _renderHTML(context) {
-        const { items } = context;
+        const { items, orphaned } = context;
         const container = document.createElement("div");
         container.classList.add("nsl-manager-content");
 
@@ -256,6 +279,112 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         tableWrapper.classList.add("nsl-table-wrapper");
         tableWrapper.appendChild(table);
         container.appendChild(tableWrapper);
+
+        // --- Orphaned Locks Section ---
+        if (orphaned.length > 0) {
+            const orphanSection = document.createElement("div");
+            orphanSection.classList.add("nsl-orphaned-section");
+
+            const orphanHeader = document.createElement("div");
+            orphanHeader.classList.add("nsl-orphaned-header");
+
+            const orphanTitle = document.createElement("h3");
+            orphanTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${game.i18n.localize("NSL.Manager.OrphanedTitle")}`;
+            orphanHeader.appendChild(orphanTitle);
+
+            const orphanHint = document.createElement("p");
+            orphanHint.classList.add("nsl-orphaned-hint");
+            orphanHint.textContent = game.i18n.localize("NSL.Manager.OrphanedHint");
+            orphanHeader.appendChild(orphanHint);
+
+            const removeAllBtn = document.createElement("button");
+            removeAllBtn.type = "button";
+            removeAllBtn.classList.add("nsl-btn", "nsl-btn-danger", "nsl-orphaned-remove-all");
+            removeAllBtn.innerHTML = `<i class="fa-solid fa-trash"></i> ${game.i18n.localize("NSL.Manager.OrphanedRemoveAll")}`;
+            removeAllBtn.addEventListener("click", async () => {
+                const map = getLockMap();
+                for (const o of orphaned) {
+                    delete map[o.lockKey];
+                }
+                await setLockMap(map);
+                refreshHardLockSet();
+                game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+                this.render();
+            });
+            orphanHeader.appendChild(removeAllBtn);
+
+            orphanSection.appendChild(orphanHeader);
+
+            const orphanTable = document.createElement("table");
+            orphanTable.classList.add("nsl-manager-table", "nsl-orphaned-table");
+
+            const orphanThead = document.createElement("thead");
+            orphanThead.innerHTML = `<tr>
+                <th class="nsl-col-type">${game.i18n.localize("NSL.Manager.ColumnType")}</th>
+                <th class="nsl-col-setting">${game.i18n.localize("NSL.Manager.OrphanedColumnKey")}</th>
+                <th class="nsl-col-lock">${game.i18n.localize("NSL.Manager.ColumnLock")}</th>
+                <th class="nsl-col-orphan-action"></th>
+            </tr>`;
+            orphanTable.appendChild(orphanThead);
+
+            const orphanTbody = document.createElement("tbody");
+            for (const o of orphaned) {
+                const row = document.createElement("tr");
+                row.classList.add("nsl-manager-row", "nsl-orphaned-row");
+
+                // Type
+                const typeCell = document.createElement("td");
+                typeCell.classList.add("nsl-col-type");
+                const typeBadge = document.createElement("span");
+                typeBadge.classList.add("nsl-type-badge", `nsl-type-${o.itemType}`);
+                typeBadge.innerHTML = o.itemType === "keybinding"
+                    ? `<i class="fa-solid fa-keyboard"></i>`
+                    : `<i class="fa-solid fa-gear"></i>`;
+                typeCell.appendChild(typeBadge);
+                row.appendChild(typeCell);
+
+                // Key
+                const keyCell = document.createElement("td");
+                keyCell.classList.add("nsl-col-setting");
+                keyCell.innerHTML = `<span class="nsl-setting-name nsl-orphaned-key"><code>${o.key}</code></span>
+                    <span class="nsl-setting-hint">${o.namespace}</span>`;
+                row.appendChild(keyCell);
+
+                // Lock type
+                const lockCell = document.createElement("td");
+                lockCell.classList.add("nsl-col-lock");
+                const lockBadge = document.createElement("span");
+                lockBadge.classList.add("nsl-lock-control", `nsl-${o.lockType}`);
+                const lockIcon = document.createElement("i");
+                lockIcon.className = "fa-solid fa-lock";
+                lockBadge.appendChild(lockIcon);
+                lockCell.appendChild(lockBadge);
+                row.appendChild(lockCell);
+
+                // Delete button
+                const actionCell = document.createElement("td");
+                actionCell.classList.add("nsl-col-orphan-action");
+                const deleteBtn = document.createElement("button");
+                deleteBtn.type = "button";
+                deleteBtn.classList.add("nsl-btn", "nsl-btn-danger", "nsl-orphan-delete");
+                deleteBtn.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
+                deleteBtn.title = game.i18n.localize("NSL.Manager.OrphanedRemove");
+                deleteBtn.addEventListener("click", async () => {
+                    await removeLock(o.lockKey);
+                    refreshHardLockSet();
+                    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+                    this.render();
+                });
+                actionCell.appendChild(deleteBtn);
+                row.appendChild(actionCell);
+
+                orphanTbody.appendChild(row);
+            }
+            orphanTable.appendChild(orphanTbody);
+            orphanSection.appendChild(orphanTable);
+
+            container.appendChild(orphanSection);
+        }
 
         return container;
     }

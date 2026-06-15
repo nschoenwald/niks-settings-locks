@@ -535,3 +535,68 @@ select.nsl-value-input {
     box-shadow: none;
 }
 
+/* --------------------------------------------------------------------------
+   Orphaned Locks Section
+   -------------------------------------------------------------------------- */
+
+.nsl-orphaned-section {
+    margin-top: 16px;
+    border-top: 2px solid var(--nsl-color-soft);
+    padding-top: 12px;
+}
+
+.nsl-orphaned-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+}
+
+.nsl-orphaned-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--nsl-color-soft);
+}
+
+.nsl-orphaned-header h3 i {
+    margin-right: 4px;
+}
+
+.nsl-orphaned-hint {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--nsl-text-hint);
+}
+
+.nsl-orphaned-remove-all {
+    margin-left: auto;
+}
+
+.nsl-orphaned-row {
+    opacity: 0.75;
+}
+
+.nsl-orphaned-key code {
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    padding: 1px 4px;
+    background: var(--nsl-input-bg);
+    border: 1px solid var(--nsl-input-border);
+    border-radius: 3px;
+}
+
+.nsl-col-orphan-action {
+    width: 36px;
+    text-align: center;
+}
+
+.nsl-orphan-delete {
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 1;
+    min-width: unset;
+}

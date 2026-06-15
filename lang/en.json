@@ -56,7 +56,12 @@
       "ReenforceButton": "Re-enforce Soft Locks",
       "ClearAllButton": "Clear All Locks",
       "ClearAllConfirm": "Are you sure you want to remove all locks?",
-      "ShowLockedOnly": "Show locked only"
+      "ShowLockedOnly": "Show locked only",
+      "OrphanedTitle": "Orphaned Locks",
+      "OrphanedHint": "These locks reference settings or controls that are no longer registered. This usually means the module was uninstalled or the setting was removed.",
+      "OrphanedColumnKey": "Key",
+      "OrphanedRemove": "Remove this lock",
+      "OrphanedRemoveAll": "Remove All Orphaned"
     },
 
     "Export": {
