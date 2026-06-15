@@ -413,6 +413,23 @@ select.nsl-value-input {
     pointer-events: none;
 }
 
+/* Empty state row */
+.nsl-empty-row td {
+    text-align: center;
+    padding: 20px 10px;
+    color: var(--nsl-text-muted);
+    font-style: italic;
+}
+
+/* JSON textarea for Object/Array values */
+.nsl-value-json {
+    width: 100%;
+    min-height: 40px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    resize: vertical;
+}
+
 /* Setting name + hint */
 .nsl-setting-name {
     display: block;

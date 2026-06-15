@@ -24,13 +24,19 @@ let _bypassEnforcement = false;
 // ---------------------------------------------------------------------------
 
 /**
- * Initialize enforcement. Call once during module setup.
- * - Wraps game.settings.set and game.keybindings.set for runtime prevention.
- * - Registers the socket listener.
+ * Register the libWrapper wrappers. Call during "init" hook.
+ * Socket listener and lock application happen later during "ready".
  */
 export function initEnforcer() {
     _wrapSettingsSet();
     _wrapKeybindingsSet();
+}
+
+/**
+ * Register the socket listener for GM broadcasts.
+ * Must be called during "ready" when game.socket is available.
+ */
+export function registerSocketListener() {
     _registerSocketListener();
 }
 
@@ -50,8 +56,6 @@ export async function applyLocks() {
     _hardLockedKeys.clear();
 
     for (const [lockKey, lock] of entries) {
-        const { type, value, rev } = lock;
-
         // Determine if this is a keybinding or a setting
         const isKeybinding = lockKey.startsWith(KB_PREFIX);
 
@@ -269,30 +273,62 @@ function _wrapKeybindingsSet() {
 
 /**
  * Register the socket listener for GM broadcasts.
+ * Only non-GM clients re-apply locks on socket messages.
  */
 function _registerSocketListener() {
     game.socket.on(SOCKET_CHANNEL, async (data) => {
         if (data?.action === "apply-locks") {
+            // GM is the sender — they don't need to re-apply their own changes
+            if (game.user.isGM) return;
+
             console.log(`${MODULE_ID} | Received lock update from GM, re-applying...`);
             ui.notifications?.info(game.i18n.localize("NSL.Notifications.LocksEnforced"));
             await applyLocks();
-            // Re-render open config windows
-            try {
-                for (const app of SettingsConfig.instances()) { app.render(); break; }
-            } catch { /* not open */ }
-            try {
-                for (const app of ControlsConfig.instances()) { app.render(); break; }
-            } catch { /* not open */ }
+
+            // Re-render open config windows using the V14 application registry
+            _rerenderOpenApp("SettingsConfig");
+            _rerenderOpenApp("ControlsConfig");
         }
     });
 }
 
 /**
+ * Find and re-render an open ApplicationV2 by class name.
+ * Uses foundry.applications.instances (V14) or falls back to ui.windows.
+ */
+function _rerenderOpenApp(className) {
+    try {
+        // V14: foundry.applications.instances is a Map of all active ApplicationV2 instances
+        if (foundry.applications?.instances) {
+            for (const app of foundry.applications.instances.values()) {
+                if (app.constructor.name === className) {
+                    app.render();
+                    return;
+                }
+            }
+        }
+    } catch {
+        // Silently ignore — window not open
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Deep Equality
+// ---------------------------------------------------------------------------
+
+/**
  * Deep equality check for setting/keybinding values.
+ * Uses foundry.utils.objectsEqual when available (V14+), falls back to
+ * JSON.stringify comparison.
  */
 function _valuesEqual(a, b) {
     if (a === b) return true;
+    if (a == null || b == null) return false;
     try {
+        // Prefer Foundry's built-in deep comparison (order-independent for objects)
+        if (typeof foundry?.utils?.objectsEqual === "function") {
+            return foundry.utils.objectsEqual(a, b);
+        }
         return JSON.stringify(a) === JSON.stringify(b);
     } catch {
         return false;

@@ -75,6 +75,8 @@ export async function removeLock(settingKey) {
     if (!(settingKey in map)) return;
     delete map[settingKey];
     await setLockMap(map);
+    // Clean up the soft-lock revision tracking for this key
+    clearSoftLockRev(settingKey);
 }
 
 // ---------------------------------------------------------------------------
@@ -219,9 +221,15 @@ export async function importLocks() {
 
                 if (!confirmed) return resolve();
 
-                // Merge into existing map
+                // Merge into existing map (only valid entries)
                 const map = getLockMap();
+                let imported = 0;
                 for (const [key, entry] of Object.entries(incoming)) {
+                    // Validate entry structure
+                    if (!entry || (entry.type !== "soft" && entry.type !== "hard")) {
+                        console.warn(`${MODULE_ID} | Skipping invalid lock entry: ${key}`, entry);
+                        continue;
+                    }
                     // Bump rev so soft locks re-apply
                     const existingRev = map[key]?.rev ?? 0;
                     map[key] = {
@@ -229,6 +237,7 @@ export async function importLocks() {
                         value: entry.value,
                         rev: existingRev + 1
                     };
+                    imported++;
                 }
 
                 await setLockMap(map);
@@ -236,8 +245,8 @@ export async function importLocks() {
                 // Broadcast to all connected clients
                 game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
-                const successKey = count === 1 ? "NSL.Notifications.ImportSuccessOne" : "NSL.Notifications.ImportSuccessMany";
-                ui.notifications.info(game.i18n.format(successKey, { count }));
+                const successKey = imported === 1 ? "NSL.Notifications.ImportSuccessOne" : "NSL.Notifications.ImportSuccessMany";
+                ui.notifications.info(game.i18n.format(successKey, { count: imported }));
             } catch (err) {
                 console.error(`${MODULE_ID} | Import failed:`, err);
                 ui.notifications.error(game.i18n.format("NSL.Notifications.ImportFailed", { error: err.message }));

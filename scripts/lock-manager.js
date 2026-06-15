@@ -34,6 +34,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         }
     };
 
+    /** Guard against rapid double-clicks on lock cycling. */
+    _lockCycleInProgress = false;
+
     /** @override */
     async _prepareContext() {
         const map = getLockMap();
@@ -71,9 +74,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 choices: config.choices ?? null,
                 range: config.range ?? null,
                 filePicker: config.filePicker ?? false,
-                isColor: config.type === foundry.data.fields.ColorField
-                    || (typeof config.type === "function" && config.type.name === "Color")
-                    || _looksLikeColor(effectiveValue)
+                isColor: _isColorType(config.type, effectiveValue)
             };
 
             items.push({
@@ -269,9 +270,19 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
         // Body
         const tbody = document.createElement("tbody");
-        for (const item of items) {
-            const row = this._buildRow(item);
-            tbody.appendChild(row);
+        if (items.length === 0) {
+            const emptyRow = document.createElement("tr");
+            emptyRow.classList.add("nsl-empty-row");
+            const emptyCell = document.createElement("td");
+            emptyCell.colSpan = 5;
+            emptyCell.textContent = game.i18n.localize("NSL.Manager.NoResults");
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+        } else {
+            for (const item of items) {
+                const row = this._buildRow(item);
+                tbody.appendChild(row);
+            }
         }
         table.appendChild(tbody);
 
@@ -343,11 +354,19 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 typeCell.appendChild(typeBadge);
                 row.appendChild(typeCell);
 
-                // Key
+                // Key (safe: use textContent, not innerHTML)
                 const keyCell = document.createElement("td");
                 keyCell.classList.add("nsl-col-setting");
-                keyCell.innerHTML = `<span class="nsl-setting-name nsl-orphaned-key"><code>${o.key}</code></span>
-                    <span class="nsl-setting-hint">${o.namespace}</span>`;
+                const keyName = document.createElement("span");
+                keyName.classList.add("nsl-setting-name", "nsl-orphaned-key");
+                const keyCode = document.createElement("code");
+                keyCode.textContent = o.key;
+                keyName.appendChild(keyCode);
+                keyCell.appendChild(keyName);
+                const keyHint = document.createElement("span");
+                keyHint.classList.add("nsl-setting-hint");
+                keyHint.textContent = o.namespace;
+                keyCell.appendChild(keyHint);
                 row.appendChild(keyCell);
 
                 // Lock type
@@ -453,12 +472,18 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         typeCell.appendChild(typeBadge);
         row.appendChild(typeCell);
 
-        // --- Name cell ---
+        // --- Name cell (safe: use textContent, not innerHTML) ---
         const nameCell = document.createElement("td");
         nameCell.classList.add("nsl-col-setting");
-        nameCell.innerHTML = `<span class="nsl-setting-name">${item.name}</span>`;
+        const nameSpan = document.createElement("span");
+        nameSpan.classList.add("nsl-setting-name");
+        nameSpan.textContent = item.name;
+        nameCell.appendChild(nameSpan);
         if (item.hint) {
-            nameCell.innerHTML += `<span class="nsl-setting-hint">${item.hint}</span>`;
+            const hintSpan = document.createElement("span");
+            hintSpan.classList.add("nsl-setting-hint");
+            hintSpan.textContent = item.hint;
+            nameCell.appendChild(hintSpan);
         }
         row.appendChild(nameCell);
 
@@ -554,6 +579,25 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
         }
 
+        // --- Object / Array (show as JSON) ---
+        else if (meta.type === "Object" || meta.type === "Array") {
+            input = document.createElement("textarea");
+            input.classList.add("nsl-value-input", "nsl-value-json");
+            input.rows = 2;
+            try {
+                input.value = JSON.stringify(effectiveValue, null, 2);
+            } catch {
+                input.value = String(effectiveValue);
+            }
+            input.addEventListener("change", () => {
+                try {
+                    this._onValueChange(lockKey, JSON.parse(input.value));
+                } catch {
+                    ui.notifications.warn("Invalid JSON value.");
+                }
+            });
+        }
+
         // --- String (default) ---
         else {
             input = document.createElement("input");
@@ -619,13 +663,17 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     //  Filtering
     // -----------------------------------------------------------------------
 
-    _applyFilter(container, filterText, lockedOnly = false) {
+    _applyFilter(container, filterText, lockedOnly) {
         const text = (filterText || "").toLowerCase().trim();
         const checkbox = container.querySelector(".nsl-show-locked-checkbox");
-        if (checkbox && lockedOnly === undefined) lockedOnly = checkbox.checked;
+        if (lockedOnly === undefined && checkbox) lockedOnly = checkbox.checked;
 
         const rows = container.querySelectorAll(".nsl-manager-row");
+        let visibleCount = 0;
         for (const row of rows) {
+            // Skip orphaned rows — they are always visible
+            if (row.classList.contains("nsl-orphaned-row")) continue;
+
             const searchText = row.dataset.searchText || "";
             const lockType = row.dataset.lockType || "none";
 
@@ -634,6 +682,29 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             if (lockedOnly && lockType === "none") visible = false;
 
             row.style.display = visible ? "" : "none";
+            if (visible) visibleCount++;
+        }
+
+        // Show/hide the "no results" row
+        const emptyRow = container.querySelector(".nsl-empty-row");
+        if (emptyRow) {
+            emptyRow.style.display = visibleCount === 0 ? "" : "none";
+        } else if (visibleCount === 0) {
+            // Dynamically insert an empty row if filtering hid everything
+            const tbody = container.querySelector(".nsl-manager-table tbody");
+            if (tbody) {
+                const noResults = document.createElement("tr");
+                noResults.classList.add("nsl-empty-row", "nsl-filter-empty");
+                const cell = document.createElement("td");
+                cell.colSpan = 5;
+                cell.textContent = game.i18n.localize("NSL.Manager.NoResults");
+                noResults.appendChild(cell);
+                tbody.appendChild(noResults);
+            }
+        } else {
+            // Remove any dynamic empty row
+            const filterEmpty = container.querySelector(".nsl-filter-empty");
+            if (filterEmpty) filterEmpty.remove();
         }
     }
 
@@ -642,40 +713,48 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     // -----------------------------------------------------------------------
 
     async _cycleLock(lockKey, item, direction) {
-        const map = getLockMap();
-        const lock = map[lockKey] ?? null;
+        // Guard against rapid double-clicks
+        if (this._lockCycleInProgress) return;
+        this._lockCycleInProgress = true;
 
-        // Get current value based on item type
-        let value;
-        if (item.itemType === "keybinding") {
-            const [namespace, ...actionParts] = item.key.split(".");
-            value = game.keybindings.get(namespace, actionParts.join("."));
-        } else {
-            const [namespace, ...keyParts] = item.key.split(".");
-            value = game.settings.get(namespace, keyParts.join("."));
-        }
+        try {
+            const map = getLockMap();
+            const lock = map[lockKey] ?? null;
 
-        if (direction === "forward") {
-            if (!lock) {
-                await setLock(lockKey, "soft", value);
-            } else if (lock.type === "soft") {
-                await setLock(lockKey, "hard", value);
+            // Get current value based on item type
+            let value;
+            if (item.itemType === "keybinding") {
+                const [namespace, ...actionParts] = item.key.split(".");
+                value = game.keybindings.get(namespace, actionParts.join("."));
             } else {
-                await removeLock(lockKey);
+                const [namespace, ...keyParts] = item.key.split(".");
+                value = game.settings.get(namespace, keyParts.join("."));
             }
-        } else {
-            if (!lock) {
-                await setLock(lockKey, "hard", value);
-            } else if (lock.type === "hard") {
-                await setLock(lockKey, "soft", value);
-            } else {
-                await removeLock(lockKey);
-            }
-        }
 
-        refreshHardLockSet();
-        game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-        this.render();
+            if (direction === "forward") {
+                if (!lock) {
+                    await setLock(lockKey, "soft", value);
+                } else if (lock.type === "soft") {
+                    await setLock(lockKey, "hard", value);
+                } else {
+                    await removeLock(lockKey);
+                }
+            } else {
+                if (!lock) {
+                    await setLock(lockKey, "hard", value);
+                } else if (lock.type === "hard") {
+                    await setLock(lockKey, "soft", value);
+                } else {
+                    await removeLock(lockKey);
+                }
+            }
+
+            refreshHardLockSet();
+            game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+            this.render();
+        } finally {
+            this._lockCycleInProgress = false;
+        }
     }
 }
 
@@ -683,14 +762,45 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 //  Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve a Foundry setting type to a simple string.
+ * Handles V14 DataField types alongside classic constructor types.
+ */
 function _resolveType(type) {
     if (!type) return "String";
+
+    // Classic constructor types
     if (type === Boolean || type?.name === "Boolean") return "Boolean";
     if (type === Number || type?.name === "Number") return "Number";
     if (type === String || type?.name === "String") return "String";
     if (type === Object || type?.name === "Object") return "Object";
     if (type === Array || type?.name === "Array") return "Array";
+
+    // V14 DataField types
+    try {
+        if (type instanceof foundry.data.fields.BooleanField) return "Boolean";
+        if (type instanceof foundry.data.fields.NumberField) return "Number";
+        if (type instanceof foundry.data.fields.StringField) return "String";
+        if (type instanceof foundry.data.fields.ObjectField) return "Object";
+        if (type instanceof foundry.data.fields.ArrayField) return "Array";
+        if (type instanceof foundry.data.fields.ColorField) return "String";
+    } catch {
+        // DataField classes may not exist — ignore
+    }
+
     return "String";
+}
+
+/**
+ * Check if a setting type or value represents a CSS color.
+ */
+function _isColorType(type, value) {
+    try {
+        if (type === foundry.data.fields.ColorField) return true;
+        if (type instanceof foundry.data.fields.ColorField) return true;
+    } catch { /* ignore */ }
+    if (typeof type === "function" && type.name === "Color") return true;
+    return _looksLikeColor(value);
 }
 
 function _looksLikeColor(value) {

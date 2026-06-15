@@ -13,13 +13,10 @@
       "Soft": "Soft Locked — the GM's value is applied once. Players may override it permanently.\nClick to cycle to Hard Lock. Right-click to unlock.",
       "Hard": "Hard Locked — forced to the GM's value. Players cannot change it.\nClick to unlock. Right-click to cycle to Soft Lock.",
       "LockedByGM": "This is locked by the GM.",
-      "SoftLockedByGM": "This was set by the GM. You may change it if you wish.",
-      "GMOnly": "Lock controls are only available to the GM."
+      "SoftLockedByGM": "This was set by the GM. You may change it if you wish."
     },
 
     "Notifications": {
-      "LockSet": "Lock set: {key} → {type}",
-      "LockRemoved": "Lock removed: {key}",
       "LocksAppliedOne": "Applied {count} lock.",
       "LocksAppliedMany": "Applied {count} locks.",
       "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
@@ -65,7 +62,6 @@
     },
 
     "Export": {
-      "DialogTitle": "Export Locks",
       "Filename": "settings-locks"
     },
 
