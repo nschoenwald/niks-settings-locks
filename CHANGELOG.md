@@ -2,6 +2,12 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.3] — 2026-06-17
+
+### Added
+- **Hidden/Menu Settings in Lock Manager** — Settings that are managed through sub-menus (e.g. core interface settings, AV configuration) now appear in the Lock Manager. These were previously excluded because they don't show up in the main Settings Configuration window. A small `MENU` tag indicates which settings come from sub-menus. The module's own internal settings remain excluded.
+- **Type Filter Buttons** — The Lock Manager toolbar now has segmented filter buttons (All / ⚙️ Settings / ⌨️ Controls) to quickly narrow the list to only settings or only keybinding controls. Works in combination with the text search and "Show locked only" filters.
+
 ## [14.0.2] — 2026-06-15
 
 ### Fixed

@@ -260,6 +260,65 @@
     color: var(--nsl-text-secondary);
 }
 
+/* Type filter segmented buttons */
+.nsl-type-filter {
+    display: inline-flex;
+    border: 1px solid var(--nsl-btn-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.nsl-type-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: none;
+    border-right: 1px solid var(--nsl-btn-border);
+    background: var(--nsl-btn-bg);
+    color: var(--nsl-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    line-height: 1.4;
+}
+
+.nsl-type-filter-btn:last-child {
+    border-right: none;
+}
+
+.nsl-type-filter-btn:hover {
+    background: var(--nsl-btn-bg-hover);
+    color: var(--nsl-text-primary);
+}
+
+.nsl-type-filter-btn.active {
+    background: var(--nsl-btn-bg-hover);
+    color: var(--nsl-text-primary);
+    font-weight: 600;
+}
+
+.nsl-type-filter-btn i {
+    font-size: 11px;
+}
+
+/* Hidden/menu setting tag */
+.nsl-hidden-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.6;
+    border-radius: 3px;
+    background: var(--nsl-bg-header);
+    color: var(--nsl-text-muted);
+    border: 1px solid var(--nsl-border-light);
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 .nsl-manager-buttons {
     display: flex;
     gap: 6px;

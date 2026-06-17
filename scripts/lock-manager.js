@@ -45,9 +45,13 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         // --- Gather Settings ---
         for (const [key, config] of game.settings.settings.entries()) {
             if (config.scope !== "client" && config.scope !== "user") continue;
-            if (config.config === false) continue;
 
+            // Skip our own module's internal settings (e.g. lockMap storage)
             const [namespace] = key.split(".");
+            if (namespace === MODULE_ID) continue;
+
+            const isHidden = config.config === false;
+
             const lock = map[key] ?? null;
 
             let currentValue;
@@ -89,7 +93,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 effectiveValue,
                 currentValue,
                 meta: settingMeta,
-                requiresReload: !!config.requiresReload
+                requiresReload: !!config.requiresReload,
+                isHidden
             });
         }
 
@@ -195,7 +200,32 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             this._applyFilter(container, filterInput.value, e.target.checked);
         });
 
-        toolbar.append(filterInput, showLockedCheckbox);
+        // --- Type filter buttons ---
+        const typeFilter = document.createElement("div");
+        typeFilter.classList.add("nsl-type-filter");
+
+        const types = [
+            { value: "all", label: game.i18n.localize("NSL.Manager.FilterAll"), icon: null },
+            { value: "setting", label: game.i18n.localize("NSL.Manager.FilterSettings"), icon: "fa-solid fa-gear" },
+            { value: "keybinding", label: game.i18n.localize("NSL.Manager.FilterControls"), icon: "fa-solid fa-keyboard" }
+        ];
+
+        for (const t of types) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.classList.add("nsl-type-filter-btn");
+            if (t.value === "all") btn.classList.add("active");
+            btn.dataset.typeFilter = t.value;
+            btn.innerHTML = t.icon ? `<i class="${t.icon}"></i> ${t.label}` : t.label;
+            btn.addEventListener("click", () => {
+                typeFilter.querySelectorAll(".nsl-type-filter-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                this._applyFilter(container, filterInput.value);
+            });
+            typeFilter.appendChild(btn);
+        }
+
+        toolbar.append(filterInput, typeFilter, showLockedCheckbox);
 
         // --- Button bar ---
         const btnBar = document.createElement("div");
@@ -423,7 +453,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         row.dataset.lockKey = item.lockKey;
         row.dataset.lockType = item.lockType;
         row.dataset.itemType = item.itemType;
-        row.dataset.searchText = `${item.name} ${item.moduleTitle} ${item.key}`.toLowerCase();
+        row.dataset.searchText = `${item.name} ${item.moduleTitle} ${item.key}${item.isHidden ? " hidden menu" : ""}`.toLowerCase();
 
         // --- Lock control cell ---
         const lockCell = document.createElement("td");
@@ -478,6 +508,12 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         const nameSpan = document.createElement("span");
         nameSpan.classList.add("nsl-setting-name");
         nameSpan.textContent = item.name;
+        if (item.isHidden) {
+            const menuTag = document.createElement("span");
+            menuTag.classList.add("nsl-hidden-tag");
+            menuTag.textContent = game.i18n.localize("NSL.Manager.HiddenSettingTag");
+            nameSpan.appendChild(menuTag);
+        }
         nameCell.appendChild(nameSpan);
         if (item.hint) {
             const hintSpan = document.createElement("span");
@@ -668,6 +704,10 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         const checkbox = container.querySelector(".nsl-show-locked-checkbox");
         if (lockedOnly === undefined && checkbox) lockedOnly = checkbox.checked;
 
+        // Read the active type filter
+        const activeTypeBtn = container.querySelector(".nsl-type-filter-btn.active");
+        const typeFilter = activeTypeBtn?.dataset.typeFilter || "all";
+
         const rows = container.querySelectorAll(".nsl-manager-row");
         let visibleCount = 0;
         for (const row of rows) {
@@ -676,10 +716,12 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
             const searchText = row.dataset.searchText || "";
             const lockType = row.dataset.lockType || "none";
+            const itemType = row.dataset.itemType || "";
 
             let visible = true;
             if (text && !searchText.includes(text)) visible = false;
             if (lockedOnly && lockType === "none") visible = false;
+            if (typeFilter !== "all" && itemType !== typeFilter) visible = false;
 
             row.style.display = visible ? "" : "none";
             if (visible) visibleCount++;
