@@ -75,7 +75,8 @@ export async function applyLocks() {
     }
 
     if (needsReload) {
-        ui.notifications?.warn(game.i18n.localize("NSL.Notifications.ReloadRequired"));
+        ui.notifications?.warn(game.i18n.localize("NSL.Notifications.ReloadForcing"));
+        setTimeout(() => window.location.reload(), 1500);
     }
 }
 

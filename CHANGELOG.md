@@ -2,6 +2,11 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.5] — 2026-06-18
+
+### Added
+- **Forced reload for reload-required locks** — When locked settings that require a page reload are applied, the client now automatically reloads after a brief notification instead of just warning the user.
+
 ## [14.0.4] — 2026-06-18
 
 ### Fixed

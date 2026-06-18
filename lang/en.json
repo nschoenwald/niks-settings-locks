@@ -25,7 +25,7 @@
       "ImportSuccessMany": "Imported {count} locks successfully.",
       "ImportFailed": "Failed to import locks: {error}",
       "NoLocksToExport": "No locks to export.",
-      "ReloadRequired": "Some locked settings require a reload to take effect.",
+      "ReloadForcing": "Some locked settings require a reload to take effect. Reloading now…",
       "LocksEnforced": "Locks have been updated by the GM.",
       "SoftLocksReenforcedOne": "Re-enforced {count} soft lock. Players will receive the updated value on their next login.",
       "SoftLocksReenforcedMany": "Re-enforced {count} soft locks. Players will receive the updated values on their next login.",
