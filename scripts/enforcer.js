@@ -87,7 +87,20 @@ export function refreshHardLockSet() {
     _hardLockedKeys.clear();
     const map = getLockMap();
     for (const [key, lock] of Object.entries(map)) {
-        if (lock.type === "hard") _hardLockedKeys.add(key);
+        if (lock.type !== "hard") continue;
+
+        // Keybinding locks are always safe (stored client-side)
+        if (key.startsWith(KB_PREFIX)) {
+            _hardLockedKeys.add(key);
+            continue;
+        }
+
+        // Only include client/user-scoped settings — world-scoped settings
+        // must never be enforced from non-GM clients (causes permission errors)
+        const config = game.settings.settings.get(key);
+        if (config && (config.scope === "client" || config.scope === "user")) {
+            _hardLockedKeys.add(key);
+        }
     }
 }
 
@@ -221,14 +234,20 @@ function _wrapSettingsSet() {
 
         const settingKey = `${namespace}.${key}`;
         if (_hardLockedKeys.has(settingKey)) {
+            // Double-check scope — never block or redirect writes to world-scoped
+            // settings from non-GM clients, as that would cause permission errors
+            const config = game.settings.settings.get(settingKey);
+            if (!config || (config.scope !== "client" && config.scope !== "user")) {
+                return wrapped(namespace, key, value, ...rest);
+            }
+
             const lock = getLock(settingKey);
 
             if (lock && _valuesEqual(value, lock.value)) {
                 return wrapped(namespace, key, value, ...rest);
             }
 
-            const config = game.settings.settings.get(settingKey);
-            const name = config?.name
+            const name = config.name
                 ? game.i18n.localize(config.name)
                 : settingKey;
             ui.notifications.warn(game.i18n.format("NSL.Notifications.HardLockBlocked", { name }));

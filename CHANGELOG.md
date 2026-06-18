@@ -2,6 +2,11 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.4] — 2026-06-18
+
+### Fixed
+- **Permission error with world-scoped settings** — Added scope guards to the enforcement wrapper and hard-lock set. If a world-scoped setting key ever ended up in the lock map (e.g. via JSON import), the wrapper could attempt to write the lock value from a non-GM client, causing a `"User lacks permission to update Setting"` error. The wrapper now verifies scope before intervening and silently passes through any write to a non-client-scoped setting.
+
 ## [14.0.3] — 2026-06-17
 
 ### Added
