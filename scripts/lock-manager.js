@@ -440,7 +440,46 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
     /** @override */
     _replaceHTML(result, content) {
+        // Preserve UI state before replacing the DOM
+        const oldWrapper = content.querySelector(".nsl-table-wrapper");
+        const scrollTop = oldWrapper?.scrollTop ?? 0;
+
+        const oldFilter = content.querySelector(".nsl-filter-input");
+        const filterText = oldFilter?.value ?? "";
+
+        const oldCheckbox = content.querySelector(".nsl-show-locked-checkbox");
+        const lockedOnly = oldCheckbox?.checked ?? false;
+
+        const oldActiveType = content.querySelector(".nsl-type-filter-btn.active");
+        const activeType = oldActiveType?.dataset.typeFilter ?? "all";
+
+        // Swap DOM
         content.replaceChildren(result);
+
+        // Restore filter text
+        const newFilter = content.querySelector(".nsl-filter-input");
+        if (newFilter && filterText) newFilter.value = filterText;
+
+        // Restore locked-only checkbox
+        const newCheckbox = content.querySelector(".nsl-show-locked-checkbox");
+        if (newCheckbox && lockedOnly) newCheckbox.checked = true;
+
+        // Restore active type filter button
+        if (activeType !== "all") {
+            const typeButtons = content.querySelectorAll(".nsl-type-filter-btn");
+            for (const btn of typeButtons) {
+                btn.classList.toggle("active", btn.dataset.typeFilter === activeType);
+            }
+        }
+
+        // Re-apply filter if any state was active
+        if (filterText || lockedOnly || activeType !== "all") {
+            this._applyFilter(content, filterText, lockedOnly);
+        }
+
+        // Restore scroll position
+        const newWrapper = content.querySelector(".nsl-table-wrapper");
+        if (newWrapper) newWrapper.scrollTop = scrollTop;
     }
 
     // -----------------------------------------------------------------------

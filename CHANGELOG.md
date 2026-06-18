@@ -2,6 +2,11 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.6] — 2026-06-19
+
+### Fixed
+- **Lock Manager scroll/filter reset** — Toggling a lock in the Lock Manager no longer resets the scroll position, filter text, "show locked only" checkbox, or type filter. All UI state is now preserved across re-renders.
+
 ## [14.0.5] — 2026-06-18
 
 ### Added
