@@ -7,7 +7,8 @@
 
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
-    getLockMap, setLock, removeLock
+    getLockMap, setLock, removeLock,
+    canManageLocks
 } from "./lock-store.js";
 import { refreshHardLockSet } from "./enforcer.js";
 
@@ -36,7 +37,7 @@ function _onRenderControls(app, html) {
     if (html.querySelector(".nsl-lock-icon")) return;
 
     const map = getLockMap();
-    const isGM = game.user.isGM;
+    const isManager = canManageLocks();
 
     // Build a set of all lockable keybinding action keys
     const lockableActions = new Set();
@@ -54,16 +55,16 @@ function _onRenderControls(app, html) {
         const actionKey = group.dataset.actionId;
         if (!actionKey || !lockableActions.has(actionKey)) continue;
         const lockKey = `${KB_PREFIX}${actionKey}`;
-        _processFormGroup(group, lockKey, actionKey, map, isGM);
+        _processFormGroup(group, lockKey, actionKey, map, isManager);
     }
 }
 
 /**
  * Process a single form-group: inject lock icon and apply disabling.
  */
-function _processFormGroup(group, lockKey, actionKey, map, isGM) {
+function _processFormGroup(group, lockKey, actionKey, map, isManager) {
     const lock = map[lockKey] ?? null;
-    _injectLockIcon(group, lockKey, actionKey, lock, isGM);
+    _injectLockIcon(group, lockKey, actionKey, lock, isManager);
 
     // Disable hard-locked keybinding inputs for ALL users
     if (lock?.type === "hard") {
@@ -78,16 +79,16 @@ function _processFormGroup(group, lockKey, actionKey, map, isGM) {
 /**
  * Inject a lock icon into a keybinding's form-group.
  */
-function _injectLockIcon(group, lockKey, actionKey, lock, isGM) {
+function _injectLockIcon(group, lockKey, actionKey, lock, isManager) {
     if (group.querySelector(".nsl-lock-icon")) return;
 
     const icon = document.createElement("a");
     icon.classList.add("nsl-lock-icon");
     icon.dataset.lockKey = lockKey;
 
-    _updateLockIcon(icon, lock, isGM);
+    _updateLockIcon(icon, lock, isManager);
 
-    if (isGM) {
+    if (isManager) {
         icon.addEventListener("click", async (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -113,7 +114,7 @@ function _injectLockIcon(group, lockKey, actionKey, lock, isGM) {
 /**
  * Update the lock icon appearance based on the lock state.
  */
-function _updateLockIcon(icon, lock, isGM) {
+function _updateLockIcon(icon, lock, isManager) {
     icon.classList.remove("nsl-unlocked", "nsl-soft", "nsl-hard");
     icon.innerHTML = "";
 
@@ -122,21 +123,21 @@ function _updateLockIcon(icon, lock, isGM) {
     if (!lock) {
         icon.classList.add("nsl-unlocked");
         i.className = "fa-solid fa-lock-open";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Unlocked")
             : "";
-        if (!isGM) icon.style.display = "none";
+        if (!isManager) icon.style.display = "none";
     } else if (lock.type === "soft") {
         icon.classList.add("nsl-soft");
         i.className = "fa-solid fa-lock";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Soft")
             : game.i18n.localize("NSL.Tooltip.SoftLockedByGM");
         icon.style.display = "";
     } else if (lock.type === "hard") {
         icon.classList.add("nsl-hard");
         i.className = "fa-solid fa-lock";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Hard")
             : game.i18n.localize("NSL.Tooltip.LockedByGM");
         icon.style.display = "";

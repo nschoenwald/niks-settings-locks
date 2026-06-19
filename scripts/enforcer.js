@@ -10,7 +10,8 @@
 
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
-    getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied
+    getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied,
+    canManageLocks
 } from "./lock-store.js";
 
 /** Track which keys (settings + keybindings) are currently hard-locked. */
@@ -231,7 +232,7 @@ async function _applyKeybindingLock(lockKey, lock) {
 function _wrapSettingsSet() {
     libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", function (wrapped, namespace, key, value, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, key, value, ...rest);
-        if (game.user?.isGM) return wrapped(namespace, key, value, ...rest);
+        if (canManageLocks()) return wrapped(namespace, key, value, ...rest);
 
         const settingKey = `${namespace}.${key}`;
         if (_hardLockedKeys.has(settingKey)) {
@@ -267,7 +268,7 @@ function _wrapSettingsSet() {
 function _wrapKeybindingsSet() {
     libWrapper.register(MODULE_ID, "ClientKeybindings.prototype.set", function (wrapped, namespace, action, bindings, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, action, bindings, ...rest);
-        if (game.user?.isGM) return wrapped(namespace, action, bindings, ...rest);
+        if (canManageLocks()) return wrapped(namespace, action, bindings, ...rest);
 
         const lockKey = `${KB_PREFIX}${namespace}.${action}`;
         if (_hardLockedKeys.has(lockKey)) {
@@ -298,8 +299,8 @@ function _wrapKeybindingsSet() {
 function _registerSocketListener() {
     game.socket.on(SOCKET_CHANNEL, async (data) => {
         if (data?.action === "apply-locks") {
-            // GM is the sender — they don't need to re-apply their own changes
-            if (game.user.isGM) return;
+            // Lock manager is the sender — they don't need to re-apply their own changes
+            if (canManageLocks()) return;
 
             console.log(`${MODULE_ID} | Received lock update from GM, re-applying...`);
             ui.notifications?.info(game.i18n.localize("NSL.Notifications.LocksEnforced"));

@@ -8,7 +8,8 @@
 import {
     MODULE_ID, SOCKET_CHANNEL,
     getLockMap, setLock, removeLock, setLockMap,
-    exportLocks, importLocks, reenforceSoftLocks
+    exportLocks, importLocks, reenforceSoftLocks,
+    canManageLocks
 } from "./lock-store.js";
 import { refreshHardLockSet } from "./enforcer.js";
 
@@ -34,7 +35,7 @@ export function initSettingsUI() {
  */
 function _onRenderSettingsConfig(app, html) {
     const map = getLockMap();
-    const isGM = game.user.isGM;
+    const isManager = canManageLocks();
 
     // Collect all lockable setting keys for fallback matching
     const lockableKeys = new Set();
@@ -51,7 +52,7 @@ function _onRenderSettingsConfig(app, html) {
         for (const group of formGroups) {
             const settingKey = group.dataset.settingId;
             if (!settingKey || !lockableKeys.has(settingKey)) continue;
-            _processFormGroup(group, settingKey, map, isGM);
+            _processFormGroup(group, settingKey, map, isManager);
         }
     } else {
         // Strategy 2: fallback — find inputs/selects whose name matches "namespace.key"
@@ -67,12 +68,12 @@ function _onRenderSettingsConfig(app, html) {
             if (!group) continue;
 
             processed.add(name);
-            _processFormGroup(group, name, map, isGM);
+            _processFormGroup(group, name, map, isManager);
         }
     }
 
     // GM-only: add export/import buttons to our module's settings section
-    if (isGM) {
+    if (isManager) {
         _injectModuleButtons(app, html);
     }
 }
@@ -80,9 +81,9 @@ function _onRenderSettingsConfig(app, html) {
 /**
  * Process a single form-group: inject lock icon and apply disabling.
  */
-function _processFormGroup(group, settingKey, map, isGM) {
+function _processFormGroup(group, settingKey, map, isManager) {
     const lock = map[settingKey] ?? null;
-    _injectLockIcon(group, settingKey, lock, isGM);
+    _injectLockIcon(group, settingKey, lock, isManager);
 
     // Disable hard-locked setting inputs for ALL users (locks apply to every client)
     if (lock?.type === "hard") {
@@ -97,7 +98,7 @@ function _processFormGroup(group, settingKey, map, isGM) {
 /**
  * Inject a lock icon into a setting's form-group.
  */
-function _injectLockIcon(group, settingKey, lock, isGM) {
+function _injectLockIcon(group, settingKey, lock, isManager) {
     // Don't double-inject
     if (group.querySelector(".nsl-lock-icon")) return;
 
@@ -106,9 +107,9 @@ function _injectLockIcon(group, settingKey, lock, isGM) {
     icon.dataset.settingKey = settingKey;
 
     // Set initial state
-    _updateLockIcon(icon, lock, isGM);
+    _updateLockIcon(icon, lock, isManager);
 
-    if (isGM) {
+    if (isManager) {
         // Left click: cycle forward (unlocked → soft → hard → unlocked)
         icon.addEventListener("click", async (event) => {
             event.preventDefault();
@@ -136,7 +137,7 @@ function _injectLockIcon(group, settingKey, lock, isGM) {
 /**
  * Update the lock icon appearance based on the lock state.
  */
-function _updateLockIcon(icon, lock, isGM) {
+function _updateLockIcon(icon, lock, isManager) {
     icon.classList.remove("nsl-unlocked", "nsl-soft", "nsl-hard");
     icon.innerHTML = "";
 
@@ -146,22 +147,22 @@ function _updateLockIcon(icon, lock, isGM) {
         // Unlocked
         icon.classList.add("nsl-unlocked");
         i.className = "fa-solid fa-lock-open";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Unlocked")
             : "";
-        // Hide the icon entirely for non-GM when unlocked
-        if (!isGM) icon.style.display = "none";
+        // Hide the icon entirely for non-managers when unlocked
+        if (!isManager) icon.style.display = "none";
     } else if (lock.type === "soft") {
         icon.classList.add("nsl-soft");
         i.className = "fa-solid fa-lock";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Soft")
             : game.i18n.localize("NSL.Tooltip.SoftLockedByGM");
         icon.style.display = "";
     } else if (lock.type === "hard") {
         icon.classList.add("nsl-hard");
         i.className = "fa-solid fa-lock";
-        icon.title = isGM
+        icon.title = isManager
             ? game.i18n.localize("NSL.Tooltip.Hard")
             : game.i18n.localize("NSL.Tooltip.LockedByGM");
         icon.style.display = "";

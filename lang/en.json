@@ -34,7 +34,12 @@
 
     "Settings": {
       "OpenManager": "Open Lock Manager",
-      "OpenManagerHint": "Opens a dedicated window for managing all settings and control locks."
+      "OpenManagerHint": "Opens a dedicated window for managing all settings and control locks.",
+      "MinRoleName": "Minimum Role for Lock Management",
+      "MinRoleHint": "The minimum user role required to view and manage locks. Higher roles are always included (e.g. selecting Trusted Player also grants access to Assistant GMs and Game Masters).",
+      "RoleGM": "Game Master",
+      "RoleAssistant": "Assistant Game Master",
+      "RoleTrusted": "Trusted Player"
     },
 
     "Manager": {

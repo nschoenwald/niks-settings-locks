@@ -12,10 +12,30 @@
 
 export const MODULE_ID = "niks-settings-locks";
 export const SETTING_LOCK_MAP = "lockMap";
+export const SETTING_MIN_ROLE = "minimumRole";
 export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
 export const KB_PREFIX = "kb:";
 
 const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
+
+// ---------------------------------------------------------------------------
+//  Role Check
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether the current user has permission to manage locks.
+ * Returns true if the user's role is >= the configured minimum role.
+ * Defaults to GAMEMASTER (4) if the setting hasn't been registered yet.
+ */
+export function canManageLocks() {
+    let minRole = CONST.USER_ROLES.GAMEMASTER;
+    try {
+        minRole = game.settings.get(MODULE_ID, SETTING_MIN_ROLE);
+    } catch {
+        // Setting not yet registered — fall back to GM-only
+    }
+    return (game.user?.role ?? 0) >= minRole;
+}
 
 // ---------------------------------------------------------------------------
 //  Lock Map CRUD

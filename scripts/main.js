@@ -5,7 +5,7 @@
  * wires up the enforcer and UI hooks.
  */
 
-import { MODULE_ID, SETTING_LOCK_MAP } from "./lock-store.js";
+import { MODULE_ID, SETTING_LOCK_MAP, SETTING_MIN_ROLE, canManageLocks } from "./lock-store.js";
 import { initEnforcer, registerSocketListener, applyLocks } from "./enforcer.js";
 import { initSettingsUI } from "./settings-ui.js";
 import { initControlsUI } from "./controls-ui.js";
@@ -29,7 +29,24 @@ Hooks.once("init", () => {
         restricted: true
     });
 
-    // Register a menu button to open the Lock Manager (GM only)
+    // Register the minimum role setting
+    game.settings.register(MODULE_ID, SETTING_MIN_ROLE, {
+        name: game.i18n.localize("NSL.Settings.MinRoleName"),
+        hint: game.i18n.localize("NSL.Settings.MinRoleHint"),
+        scope: "world",
+        config: true,
+        type: Number,
+        default: CONST.USER_ROLES.GAMEMASTER,
+        choices: {
+            [CONST.USER_ROLES.GAMEMASTER]: game.i18n.localize("NSL.Settings.RoleGM"),
+            [CONST.USER_ROLES.ASSISTANT]: game.i18n.localize("NSL.Settings.RoleAssistant"),
+            [CONST.USER_ROLES.TRUSTED]: game.i18n.localize("NSL.Settings.RoleTrusted")
+        },
+        restricted: true,
+        requiresReload: true
+    });
+
+    // Register a menu button to open the Lock Manager
     game.settings.registerMenu(MODULE_ID, "lockManager", {
         name: game.i18n.localize("NSL.Settings.OpenManager"),
         hint: game.i18n.localize("NSL.Settings.OpenManagerHint"),

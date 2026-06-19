@@ -2,6 +2,11 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.7] — 2026-06-19
+
+### Added
+- **Configurable Minimum Role** — New world setting to control which user role can view and manage locks. Options are Game Master (default), Assistant Game Master, and Trusted Player. Higher roles are always included — for example, selecting Trusted Player also grants access to Assistant GMs and Game Masters. The setting requires a reload to take effect and can only be changed by a Game Master.
+
 ## [14.0.6] — 2026-06-19
 
 ### Fixed
