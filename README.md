@@ -12,6 +12,7 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 - **Controls Support** — Lock keybinding (control) configurations, ensuring consistent hotkeys across all clients.
 - **Inline Lock Icons** — Lock toggle icons appear next to every lockable item in both the Settings Configuration and Configure Controls windows.
 - **Lock Manager** — A dedicated management window with a filterable table of all lockable settings and controls, type-appropriate value editors, keybinding display, and type filter buttons (All / Settings / Controls) for quick navigation.
+- **Interactive Update Prompt** — When a GM batch-saves changes to settings that are currently soft-locked, an interactive prompt allows them to quickly select which soft locks to update globally for players.
 - **Re-enforce Soft Locks** — Re-publish all soft locks with a new revision so players receive the GM's values on their next login.
 - **Export / Import** — Save and restore lock configurations as JSON files. Includes both setting and keybinding locks.
 - **Clear All Locks** — Remove all locks at once from both the Settings Config and the Lock Manager.

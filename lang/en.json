@@ -29,7 +29,16 @@
       "LocksEnforced": "Locks have been updated by the GM.",
       "SoftLocksReenforcedOne": "Re-enforced {count} soft lock. Players will receive the updated value on their next login.",
       "SoftLocksReenforcedMany": "Re-enforced {count} soft locks. Players will receive the updated values on their next login.",
-      "NoSoftLocks": "No soft locks to re-enforce."
+      "NoSoftLocks": "No soft locks to re-enforce.",
+      "SoftLocksUpdated": "Updated {count} soft lock(s) for players."
+    },
+
+    "Prompt": {
+      "SoftLockUpdateTitle": "Update Soft Locks?",
+      "SoftLockUpdateDesc": "You have changed the values of settings that are currently soft-locked. Do you want to update the soft lock so players receive the new values, or keep it as a local change for yourself only?",
+      "NewValue": "New value",
+      "UpdateLock": "Update soft lock for players",
+      "ApplySelected": "Apply Selected"
     },
 
     "Settings": {

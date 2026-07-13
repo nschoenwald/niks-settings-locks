@@ -10,15 +10,33 @@
 
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
-    getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied,
+    getLockMap, getLock, setLock, shouldApplySoftLock, markSoftLockApplied,
     canManageLocks
 } from "./lock-store.js";
+import { promptSoftLockUpdates } from "./soft-lock-prompt.js";
 
 /** Track which keys (settings + keybindings) are currently hard-locked. */
 const _hardLockedKeys = new Set();
 
 /** Flag to bypass our own set() wrappers when we apply locks internally. */
 let _bypassEnforcement = false;
+
+/** Batching for soft lock updates. */
+let _pendingSoftLockUpdates = new Map();
+let _softLockUpdateTimeout = null;
+
+function _queueSoftLockUpdate(key, value) {
+    _pendingSoftLockUpdates.set(key, value);
+    if (_softLockUpdateTimeout !== null) {
+        clearTimeout(_softLockUpdateTimeout);
+    }
+    _softLockUpdateTimeout = setTimeout(() => {
+        const updates = new Map(_pendingSoftLockUpdates);
+        _pendingSoftLockUpdates.clear();
+        _softLockUpdateTimeout = null;
+        promptSoftLockUpdates(updates);
+    }, 100);
+}
 
 // ---------------------------------------------------------------------------
 //  Public API
@@ -230,11 +248,25 @@ async function _applyKeybindingLock(lockKey, lock) {
  * Wrap ClientSettings.prototype.set to block hard-locked setting changes.
  */
 function _wrapSettingsSet() {
-    libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", function (wrapped, namespace, key, value, ...rest) {
+    libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", async function (wrapped, namespace, key, value, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, key, value, ...rest);
-        if (canManageLocks()) return wrapped(namespace, key, value, ...rest);
 
         const settingKey = `${namespace}.${key}`;
+
+        if (canManageLocks()) {
+            const result = await wrapped(namespace, key, value, ...rest);
+            const lock = getLock(settingKey);
+            if (lock && !_valuesEqual(value, lock.value)) {
+                if (lock.type === "hard") {
+                    await setLock(settingKey, lock.type, value);
+                    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+                } else if (lock.type === "soft") {
+                    _queueSoftLockUpdate(settingKey, value);
+                }
+            }
+            return result;
+        }
+
         if (_hardLockedKeys.has(settingKey)) {
             // Double-check scope — never block or redirect writes to world-scoped
             // settings from non-GM clients, as that would cause permission errors
@@ -266,11 +298,24 @@ function _wrapSettingsSet() {
  * Wrap ClientKeybindings.prototype.set to block hard-locked keybinding changes.
  */
 function _wrapKeybindingsSet() {
-    libWrapper.register(MODULE_ID, "ClientKeybindings.prototype.set", function (wrapped, namespace, action, bindings, ...rest) {
+    libWrapper.register(MODULE_ID, "ClientKeybindings.prototype.set", async function (wrapped, namespace, action, bindings, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, action, bindings, ...rest);
-        if (canManageLocks()) return wrapped(namespace, action, bindings, ...rest);
-
+        
         const lockKey = `${KB_PREFIX}${namespace}.${action}`;
+
+        if (canManageLocks()) {
+            const result = await wrapped(namespace, action, bindings, ...rest);
+            const lock = getLock(lockKey);
+            if (lock && !_valuesEqual(bindings, lock.value)) {
+                if (lock.type === "hard") {
+                    await setLock(lockKey, lock.type, bindings);
+                    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+                } else if (lock.type === "soft") {
+                    _queueSoftLockUpdate(lockKey, bindings);
+                }
+            }
+            return result;
+        }
         if (_hardLockedKeys.has(lockKey)) {
             const lock = getLock(lockKey);
 

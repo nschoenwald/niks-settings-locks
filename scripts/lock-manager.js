@@ -732,6 +732,21 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         await setLock(lockKey, lock.type, newValue);
         refreshHardLockSet();
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+
+        try {
+            if (lockKey.startsWith(KB_PREFIX)) {
+                const actionKey = lockKey.slice(KB_PREFIX.length);
+                const [namespace, ...actionParts] = actionKey.split(".");
+                const action = actionParts.join(".");
+                await game.keybindings.set(namespace, action, newValue);
+            } else {
+                const [namespace, ...keyParts] = lockKey.split(".");
+                const key = keyParts.join(".");
+                await game.settings.set(namespace, key, newValue);
+            }
+        } catch (err) {
+            console.warn(`${MODULE_ID} | Failed to apply updated lock locally:`, err);
+        }
     }
 
     // -----------------------------------------------------------------------

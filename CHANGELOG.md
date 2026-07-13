@@ -2,6 +2,13 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.8] — 2026-07-13
+
+### Fixed
+- **Soft Lock Updates Not Syncing** — When the GM modifies a setting or keybinding that is currently locked via the standard settings menus or the Lock Manager, the new value is now automatically recorded into the world lock store so it applies to players.
+- **Soft Lock Update Prompt** — Added an interactive popup when the GM batch-edits multiple soft-locked settings. The GM can selectively choose whether each changed setting updates the global soft lock for players, or remains purely local.
+
+
 ## [14.0.7] — 2026-06-19
 
 ### Added
