@@ -2,6 +2,13 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.0.9] — 2026-07-31
+
+### Fixed
+- **Lock Manager Layout & Scrolling** — Resolved issue where table content exceeded the window boundary without triggering vertical scrollbars. Configured the Lock Manager container with flexbox height constraints and `min-height: 0` so the table wrapper scrolls smoothly. Unified the main locks list and orphaned locks section inside a single scrollable container to eliminate static dual-list splits.
+- **Lock Manager Search Filtering** — Search queries are now tokenized by whitespace, allowing multi-term matching (e.g. searching "core audio"). Expanded the search index to include setting descriptions (hints), lock keys, namespaces, and lock status ("soft", "hard", "locked", "unlocked").
+- **Search Clear Support** — Added listener support for browser search input clear events.
+
 ## [14.0.8] — 2026-07-13
 
 ### Fixed

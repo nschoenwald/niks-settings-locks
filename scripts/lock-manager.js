@@ -191,7 +191,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         filterInput.type = "search";
         filterInput.placeholder = game.i18n.localize("NSL.Manager.FilterPlaceholder");
         filterInput.classList.add("nsl-filter-input");
-        filterInput.addEventListener("input", () => this._applyFilter(container, filterInput.value));
+        const onFilterInput = () => this._applyFilter(container, filterInput.value);
+        filterInput.addEventListener("input", onFilterInput);
+        filterInput.addEventListener("search", onFilterInput);
 
         const showLockedCheckbox = document.createElement("label");
         showLockedCheckbox.classList.add("nsl-show-locked-toggle");
@@ -432,7 +434,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             orphanTable.appendChild(orphanTbody);
             orphanSection.appendChild(orphanTable);
 
-            container.appendChild(orphanSection);
+            tableWrapper.appendChild(orphanSection);
         }
 
         return container;
@@ -492,7 +494,20 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         row.dataset.lockKey = item.lockKey;
         row.dataset.lockType = item.lockType;
         row.dataset.itemType = item.itemType;
-        row.dataset.searchText = `${item.name} ${item.moduleTitle} ${item.key}${item.isHidden ? " hidden menu" : ""}`.toLowerCase();
+
+        const lockStateText = item.lockType === "none" ? "unlocked" : `locked ${item.lockType}`;
+        const searchCorpus = [
+            item.name,
+            item.moduleTitle,
+            item.key,
+            item.lockKey,
+            item.namespace,
+            item.hint,
+            lockStateText,
+            item.isHidden ? "hidden menu" : ""
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        row.dataset.searchText = searchCorpus;
 
         // --- Lock control cell ---
         const lockCell = document.createElement("td");
@@ -754,7 +769,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     // -----------------------------------------------------------------------
 
     _applyFilter(container, filterText, lockedOnly) {
-        const text = (filterText || "").toLowerCase().trim();
+        const rawText = (filterText || "").toLowerCase().trim();
+        const tokens = rawText.split(/\s+/).filter(Boolean);
+
         const checkbox = container.querySelector(".nsl-show-locked-checkbox");
         if (lockedOnly === undefined && checkbox) lockedOnly = checkbox.checked;
 
@@ -773,7 +790,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             const itemType = row.dataset.itemType || "";
 
             let visible = true;
-            if (text && !searchText.includes(text)) visible = false;
+            if (tokens.length > 0) {
+                visible = tokens.every(token => searchText.includes(token));
+            }
             if (lockedOnly && lockType === "none") visible = false;
             if (typeFilter !== "all" && itemType !== typeFilter) visible = false;
 
