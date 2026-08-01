@@ -68,6 +68,7 @@
       "ClearAllButton": "Clear All Locks",
       "ClearAllConfirm": "Are you sure you want to remove all locks?",
       "ShowLockedOnly": "Show locked only",
+      "ShowHiddenOnly": "Show hidden only",
       "FilterAll": "All",
       "FilterSettings": "Settings",
       "FilterControls": "Controls",

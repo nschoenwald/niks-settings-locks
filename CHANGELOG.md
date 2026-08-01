@@ -2,6 +2,11 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.1.0] — 2026-08-01
+
+### Added
+- **Hidden Settings Filter in Lock Manager** — Added a "Show hidden only" toggle checkbox to the Lock Manager toolbar. This filters the list to display only module and core settings that are registered with `config: false` (settings managed via sub-menus or custom UIs rather than standard Game Settings). Combines with search text, lock status, and type filters. State is preserved across window re-renders.
+
 ## [14.0.9] — 2026-07-31
 
 ### Fixed

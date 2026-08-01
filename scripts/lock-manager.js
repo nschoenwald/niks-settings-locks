@@ -202,6 +202,13 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             this._applyFilter(container, filterInput.value, e.target.checked);
         });
 
+        const showHiddenCheckbox = document.createElement("label");
+        showHiddenCheckbox.classList.add("nsl-show-hidden-toggle");
+        showHiddenCheckbox.innerHTML = `<input type="checkbox" class="nsl-show-hidden-checkbox"> ${game.i18n.localize("NSL.Manager.ShowHiddenOnly")}`;
+        showHiddenCheckbox.querySelector("input").addEventListener("change", (e) => {
+            this._applyFilter(container, filterInput.value, undefined, e.target.checked);
+        });
+
         // --- Type filter buttons ---
         const typeFilter = document.createElement("div");
         typeFilter.classList.add("nsl-type-filter");
@@ -227,7 +234,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             typeFilter.appendChild(btn);
         }
 
-        toolbar.append(filterInput, typeFilter, showLockedCheckbox);
+        toolbar.append(filterInput, typeFilter, showLockedCheckbox, showHiddenCheckbox);
 
         // --- Button bar ---
         const btnBar = document.createElement("div");
@@ -452,6 +459,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         const oldCheckbox = content.querySelector(".nsl-show-locked-checkbox");
         const lockedOnly = oldCheckbox?.checked ?? false;
 
+        const oldHiddenCheckbox = content.querySelector(".nsl-show-hidden-checkbox");
+        const hiddenOnly = oldHiddenCheckbox?.checked ?? false;
+
         const oldActiveType = content.querySelector(".nsl-type-filter-btn.active");
         const activeType = oldActiveType?.dataset.typeFilter ?? "all";
 
@@ -466,6 +476,10 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         const newCheckbox = content.querySelector(".nsl-show-locked-checkbox");
         if (newCheckbox && lockedOnly) newCheckbox.checked = true;
 
+        // Restore hidden-only checkbox
+        const newHiddenCheckbox = content.querySelector(".nsl-show-hidden-checkbox");
+        if (newHiddenCheckbox && hiddenOnly) newHiddenCheckbox.checked = true;
+
         // Restore active type filter button
         if (activeType !== "all") {
             const typeButtons = content.querySelectorAll(".nsl-type-filter-btn");
@@ -475,8 +489,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         }
 
         // Re-apply filter if any state was active
-        if (filterText || lockedOnly || activeType !== "all") {
-            this._applyFilter(content, filterText, lockedOnly);
+        if (filterText || lockedOnly || hiddenOnly || activeType !== "all") {
+            this._applyFilter(content, filterText, lockedOnly, hiddenOnly);
         }
 
         // Restore scroll position
@@ -494,6 +508,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         row.dataset.lockKey = item.lockKey;
         row.dataset.lockType = item.lockType;
         row.dataset.itemType = item.itemType;
+        row.dataset.isHidden = item.isHidden ? "true" : "false";
 
         const lockStateText = item.lockType === "none" ? "unlocked" : `locked ${item.lockType}`;
         const searchCorpus = [
@@ -768,12 +783,15 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     //  Filtering
     // -----------------------------------------------------------------------
 
-    _applyFilter(container, filterText, lockedOnly) {
+    _applyFilter(container, filterText, lockedOnly, hiddenOnly) {
         const rawText = (filterText || "").toLowerCase().trim();
         const tokens = rawText.split(/\s+/).filter(Boolean);
 
         const checkbox = container.querySelector(".nsl-show-locked-checkbox");
         if (lockedOnly === undefined && checkbox) lockedOnly = checkbox.checked;
+
+        const hiddenCheckbox = container.querySelector(".nsl-show-hidden-checkbox");
+        if (hiddenOnly === undefined && hiddenCheckbox) hiddenOnly = hiddenCheckbox.checked;
 
         // Read the active type filter
         const activeTypeBtn = container.querySelector(".nsl-type-filter-btn.active");
@@ -788,12 +806,14 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             const searchText = row.dataset.searchText || "";
             const lockType = row.dataset.lockType || "none";
             const itemType = row.dataset.itemType || "";
+            const isHidden = row.dataset.isHidden === "true";
 
             let visible = true;
             if (tokens.length > 0) {
                 visible = tokens.every(token => searchText.includes(token));
             }
             if (lockedOnly && lockType === "none") visible = false;
+            if (hiddenOnly && !isHidden) visible = false;
             if (typeFilter !== "all" && itemType !== typeFilter) visible = false;
 
             row.style.display = visible ? "" : "none";

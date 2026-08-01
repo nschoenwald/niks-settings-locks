@@ -261,7 +261,8 @@
     color: var(--nsl-text-muted);
 }
 
-.nsl-show-locked-toggle {
+.nsl-show-locked-toggle,
+.nsl-show-hidden-toggle {
     display: inline-flex;
     align-items: center;
     gap: 4px;
