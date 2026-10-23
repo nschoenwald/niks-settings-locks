@@ -12,6 +12,7 @@ import {
     exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
 import { refreshHardLockSet } from "./enforcer.js";
+import { renderConflictBanner } from "./conflict-guard.js";
 
 // ---------------------------------------------------------------------------
 //  Lock Manager Application
@@ -252,6 +253,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         importBtn.innerHTML = `<i class="fa-solid fa-file-import"></i> ${game.i18n.localize("NSL.Manager.ImportButton")}`;
         importBtn.addEventListener("click", async () => {
             await importLocks();
+            refreshHardLockSet();
             this.render();
         });
 
@@ -291,6 +293,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         toolbar.append(btnBar);
 
         container.appendChild(toolbar);
+
+        // Conflict Guard: show warning banner if Carolingian UI generic locks are active
+        renderConflictBanner(container, () => this.render());
 
         // --- Items Table ---
         const table = document.createElement("table");
@@ -411,10 +416,11 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 // Lock type
                 const lockCell = document.createElement("td");
                 lockCell.classList.add("nsl-col-lock");
+                const normalizedType = (o.lockType === "gate" || o.lockType === "player") ? "player" : o.lockType;
                 const lockBadge = document.createElement("span");
-                lockBadge.classList.add("nsl-lock-control", `nsl-${o.lockType}`);
+                lockBadge.classList.add("nsl-lock-control", `nsl-${normalizedType}`);
                 const lockIcon = document.createElement("i");
-                lockIcon.className = "fa-solid fa-lock";
+                lockIcon.className = normalizedType === "player" ? "fa-solid fa-user-lock" : "fa-solid fa-lock";
                 lockBadge.appendChild(lockIcon);
                 lockCell.appendChild(lockBadge);
                 row.appendChild(lockCell);
@@ -538,6 +544,9 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         } else if (item.lockType === "soft") {
             lockIcon.className = "fa-solid fa-lock";
             lockBtn.title = game.i18n.localize("NSL.LockType.Soft");
+        } else if (item.lockType === "player" || item.lockType === "gate") {
+            lockIcon.className = "fa-solid fa-user-lock";
+            lockBtn.title = game.i18n.localize("NSL.LockType.Player");
         } else {
             lockIcon.className = "fa-solid fa-lock";
             lockBtn.title = game.i18n.localize("NSL.LockType.Hard");
@@ -546,7 +555,11 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
 
         lockBtn.addEventListener("click", async (e) => {
             e.preventDefault();
-            await this._cycleLock(item.lockKey, item, "forward");
+            if (e.altKey) {
+                await this._cycleLock(item.lockKey, item, "toggle-player");
+            } else {
+                await this._cycleLock(item.lockKey, item, "forward");
+            }
         });
         lockBtn.addEventListener("contextmenu", async (e) => {
             e.preventDefault();
@@ -763,19 +776,22 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         refreshHardLockSet();
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
-        try {
-            if (lockKey.startsWith(KB_PREFIX)) {
-                const actionKey = lockKey.slice(KB_PREFIX.length);
-                const [namespace, ...actionParts] = actionKey.split(".");
-                const action = actionParts.join(".");
-                await game.keybindings.set(namespace, action, newValue);
-            } else {
-                const [namespace, ...keyParts] = lockKey.split(".");
-                const key = keyParts.join(".");
-                await game.settings.set(namespace, key, newValue);
+        // For player locks, GM's personal value is independent of the locked player value
+        if (lock.type !== "player" && lock.type !== "gate") {
+            try {
+                if (lockKey.startsWith(KB_PREFIX)) {
+                    const actionKey = lockKey.slice(KB_PREFIX.length);
+                    const [namespace, ...actionParts] = actionKey.split(".");
+                    const action = actionParts.join(".");
+                    await game.keybindings.set(namespace, action, newValue);
+                } else {
+                    const [namespace, ...keyParts] = lockKey.split(".");
+                    const key = keyParts.join(".");
+                    await game.settings.set(namespace, key, newValue);
+                }
+            } catch (err) {
+                console.warn(`${MODULE_ID} | Failed to apply updated lock locally:`, err);
             }
-        } catch (err) {
-            console.warn(`${MODULE_ID} | Failed to apply updated lock locally:`, err);
         }
     }
 
@@ -871,16 +887,26 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                     await setLock(lockKey, "soft", value);
                 } else if (lock.type === "soft") {
                     await setLock(lockKey, "hard", value);
+                } else if (lock.type === "hard") {
+                    await setLock(lockKey, "player", value);
                 } else {
                     await removeLock(lockKey);
                 }
-            } else {
+            } else if (direction === "backward") {
                 if (!lock) {
+                    await setLock(lockKey, "player", value);
+                } else if (lock.type === "player" || lock.type === "gate") {
                     await setLock(lockKey, "hard", value);
                 } else if (lock.type === "hard") {
                     await setLock(lockKey, "soft", value);
                 } else {
                     await removeLock(lockKey);
+                }
+            } else if (direction === "toggle-player") {
+                if (lock?.type === "player" || lock?.type === "gate") {
+                    await removeLock(lockKey);
+                } else {
+                    await setLock(lockKey, "player", value);
                 }
             }
 

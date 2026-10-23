@@ -3,7 +3,7 @@
  *
  * Data layer for managing the lock map stored in a world setting.
  * The lock map is a plain object keyed by "namespace.key" with entries:
- *   { type: "soft"|"hard", value: any, rev: number }
+ *   { type: "soft"|"hard"|"player", value: any, rev: number }
  *
  * Soft lock revisions are tracked per-client in localStorage so that
  * a soft lock is only applied once per revision — players can override
@@ -15,6 +15,8 @@ export const SETTING_LOCK_MAP = "lockMap";
 export const SETTING_MIN_ROLE = "minimumRole";
 export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
 export const KB_PREFIX = "kb:";
+
+import { refreshHardLockSet, applyLocks } from "./enforcer.js";
 
 const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
 
@@ -47,7 +49,11 @@ export function canManageLocks() {
  */
 export function getLockMap() {
     try {
-        return foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
+        const raw = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
+        for (const entry of Object.values(raw)) {
+            if (entry && entry.type === "gate") entry.type = "player";
+        }
+        return raw;
     } catch {
         return {};
     }
@@ -75,14 +81,15 @@ export function getLock(settingKey) {
  * Set or update a lock for a single setting.
  * Automatically increments the revision number.
  * @param {string} settingKey
- * @param {"soft"|"hard"} type
+ * @param {"soft"|"hard"|"player"} type
  * @param {*} value
  */
 export async function setLock(settingKey, type, value) {
+    const normalizedType = type === "gate" ? "player" : type;
     const map = getLockMap();
     const existing = map[settingKey];
     const rev = (existing?.rev ?? 0) + 1;
-    map[settingKey] = { type, value, rev };
+    map[settingKey] = { type: normalizedType, value, rev };
     await setLockMap(map);
 }
 
@@ -246,14 +253,15 @@ export async function importLocks() {
                 let imported = 0;
                 for (const [key, entry] of Object.entries(incoming)) {
                     // Validate entry structure
-                    if (!entry || (entry.type !== "soft" && entry.type !== "hard")) {
+                    const rawType = entry?.type === "gate" ? "player" : entry?.type;
+                    if (!entry || (rawType !== "soft" && rawType !== "hard" && rawType !== "player")) {
                         console.warn(`${MODULE_ID} | Skipping invalid lock entry: ${key}`, entry);
                         continue;
                     }
                     // Bump rev so soft locks re-apply
                     const existingRev = map[key]?.rev ?? 0;
                     map[key] = {
-                        type: entry.type,
+                        type: rawType,
                         value: entry.value,
                         rev: existingRev + 1
                     };
@@ -261,6 +269,10 @@ export async function importLocks() {
                 }
 
                 await setLockMap(map);
+                refreshHardLockSet();
+
+                // Apply imported locks on this client
+                await applyLocks();
 
                 // Broadcast to all connected clients
                 game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });

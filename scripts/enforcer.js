@@ -66,13 +66,14 @@ export function registerSocketListener() {
 export async function applyLocks() {
     const map = getLockMap();
     const entries = Object.entries(map);
+
+    // Clear the hard-lock set and rebuild it
+    _hardLockedKeys.clear();
+
     if (!entries.length) return;
 
     let applied = 0;
     let needsReload = false;
-
-    // Clear the hard-lock set and rebuild it
-    _hardLockedKeys.clear();
 
     for (const [lockKey, lock] of entries) {
         // Determine if this is a keybinding or a setting
@@ -107,7 +108,7 @@ export function refreshHardLockSet() {
     _hardLockedKeys.clear();
     const map = getLockMap();
     for (const [key, lock] of Object.entries(map)) {
-        if (lock.type !== "hard") continue;
+        if (lock.type !== "hard" && lock.type !== "player" && lock.type !== "gate") continue;
 
         // Keybinding locks are always safe (stored client-side)
         if (key.startsWith(KB_PREFIX)) {
@@ -146,8 +147,17 @@ async function _applySettingLock(settingKey, lock) {
     if (!config) return { applied: 0, needsReload: false };
     if (config.scope !== "client" && config.scope !== "user") return { applied: 0, needsReload: false };
 
-    if (type === "hard") {
+    const isPlayerLock = type === "player" || type === "gate";
+    const isHardLock = type === "hard";
+
+    if (isHardLock || isPlayerLock) {
         _hardLockedKeys.add(settingKey);
+
+        // Player locks are only enforced on non-managers; managers keep personal settings
+        if (isPlayerLock && canManageLocks()) {
+            return { applied: 0, needsReload: false };
+        }
+
         try {
             const current = game.settings.get(namespace, key);
             if (!_valuesEqual(current, value)) {
@@ -160,9 +170,14 @@ async function _applySettingLock(settingKey, lock) {
                 return { applied: 1, needsReload: !!config.requiresReload };
             }
         } catch (err) {
-            console.warn(`${MODULE_ID} | Failed to enforce hard lock on ${settingKey}:`, err);
+            console.warn(`${MODULE_ID} | Failed to enforce ${type} lock on ${settingKey}:`, err);
         }
     } else if (type === "soft") {
+        // Soft locks are recommended defaults for player clients — managers keep personal values
+        if (canManageLocks()) {
+            return { applied: 0, needsReload: false };
+        }
+
         if (shouldApplySoftLock(settingKey, rev)) {
             try {
                 const current = game.settings.get(namespace, key);
@@ -200,8 +215,17 @@ async function _applyKeybindingLock(lockKey, lock) {
     const actionConfig = game.keybindings.actions.get(actionKey);
     if (!actionConfig) return 0;
 
-    if (type === "hard") {
+    const isPlayerLock = type === "player" || type === "gate";
+    const isHardLock = type === "hard";
+
+    if (isHardLock || isPlayerLock) {
         _hardLockedKeys.add(lockKey);
+
+        // Player locks are only enforced on non-managers
+        if (isPlayerLock && canManageLocks()) {
+            return 0;
+        }
+
         try {
             const current = game.keybindings.get(namespace, action);
             if (!_valuesEqual(current, value)) {
@@ -214,9 +238,14 @@ async function _applyKeybindingLock(lockKey, lock) {
                 return 1;
             }
         } catch (err) {
-            console.warn(`${MODULE_ID} | Failed to enforce hard lock on keybinding ${actionKey}:`, err);
+            console.warn(`${MODULE_ID} | Failed to enforce ${type} lock on keybinding ${actionKey}:`, err);
         }
     } else if (type === "soft") {
+        // Soft locks are recommended defaults for player clients — managers keep personal values
+        if (canManageLocks()) {
+            return 0;
+        }
+
         if (shouldApplySoftLock(lockKey, rev)) {
             try {
                 const current = game.keybindings.get(namespace, action);
@@ -284,7 +313,10 @@ function _wrapSettingsSet() {
             const name = config.name
                 ? game.i18n.localize(config.name)
                 : settingKey;
-            ui.notifications.warn(game.i18n.format("NSL.Notifications.HardLockBlocked", { name }));
+            const notifKey = (lock?.type === "player" || lock?.type === "gate")
+                ? "NSL.Notifications.PlayerLockBlocked"
+                : "NSL.Notifications.HardLockBlocked";
+            ui.notifications.warn(game.i18n.format(notifKey, { name }));
 
             if (lock) return wrapped(namespace, key, lock.value, ...rest);
             return;
@@ -327,7 +359,10 @@ function _wrapKeybindingsSet() {
             const name = actionConfig?.name
                 ? game.i18n.localize(actionConfig.name)
                 : `${namespace}.${action}`;
-            ui.notifications.warn(game.i18n.format("NSL.Notifications.HardLockBlocked", { name }));
+            const notifKey = (lock?.type === "player" || lock?.type === "gate")
+                ? "NSL.Notifications.PlayerLockBlocked"
+                : "NSL.Notifications.HardLockBlocked";
+            ui.notifications.warn(game.i18n.format(notifKey, { name }));
 
             if (lock) return wrapped(namespace, action, lock.value, ...rest);
             return;
@@ -339,28 +374,31 @@ function _wrapKeybindingsSet() {
 
 /**
  * Register the socket listener for GM broadcasts.
- * Only non-GM clients re-apply locks on socket messages.
  */
 function _registerSocketListener() {
     game.socket.on(SOCKET_CHANNEL, async (data) => {
         if (data?.action === "apply-locks") {
-            // Lock manager is the sender — they don't need to re-apply their own changes
-            if (canManageLocks()) return;
+            const isManager = canManageLocks();
 
-            console.log(`${MODULE_ID} | Received lock update from GM, re-applying...`);
-            ui.notifications?.info(game.i18n.localize("NSL.Notifications.LocksEnforced"));
+            if (!isManager) {
+                console.log(`${MODULE_ID} | Received lock update from GM, re-applying...`);
+                ui.notifications?.info(game.i18n.localize("NSL.Notifications.LocksEnforced"));
+            }
+
+            // Apply locks on this client (player locks are safely skipped for managers)
             await applyLocks();
 
             // Re-render open config windows using the V14 application registry
             _rerenderOpenApp("SettingsConfig");
             _rerenderOpenApp("ControlsConfig");
+            _rerenderOpenApp("LockManagerApp");
         }
     });
 }
 
 /**
- * Find and re-render an open ApplicationV2 by class name.
- * Uses foundry.applications.instances (V14) or falls back to ui.windows.
+ * Find and re-render open ApplicationV2 instances by class name.
+ * Uses foundry.applications.instances (V14).
  */
 function _rerenderOpenApp(className) {
     try {
@@ -369,7 +407,6 @@ function _rerenderOpenApp(className) {
             for (const app of foundry.applications.instances.values()) {
                 if (app.constructor.name === className) {
                     app.render();
-                    return;
                 }
             }
         }

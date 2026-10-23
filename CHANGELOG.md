@@ -2,6 +2,22 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.2.0] — 2026-10-18
+
+### Added
+- **Player-Only Lock Mode (`Player Lock`)** — Added a dedicated lock mode that enforces locked values on players while allowing the GM to retain their own custom client setting. Changes made by the GM remain personal and do not overwrite the locked player value. Features a distinct blue icon (`fa-user-lock`) and can be toggled directly via **Alt+Click** on any lock icon.
+- **Conflict Guard for Carolingian UI** — Automatically detects when Carolingian UI's generic settings lock ("Enable client settings lock for core and other modules") is enabled. Suppresses duplicate lock icons in Configure Settings and presents a one-click banner for the GM to disable the conflicting setting cleanly.
+
+### Fixed
+- **Multi-GM Live Synchronization** — Fixed an issue where co-GMs and Assistant GMs did not receive live socket updates or have their open settings and Lock Manager windows refreshed when another GM modified locks. Soft locks now safely bypass co-GM clients to prevent overriding their personal settings.
+- **Import Lock Application** — Ensured imported hard locks and player locks immediately apply their values to the importing client and update runtime enforcement without requiring a reload.
+- **Lock Removal Cleanup** — Fixed an issue where clearing all locks or removing the last lock failed to clear client-side lock prevention until reload.
+- **Conflict Banner Layout** — Fixed conflict warning banner positioning in Configure Settings so it neatly spans the top of the main category pane rather than compressing the sidebar tabs. Disabling conflicting generic locks now prompts for a world reload to ensure all wrappers unregister cleanly.
+- **Theme Combination Compatibility** — Added full CSS styling support for mixed light and dark mode configurations (e.g., Core Interface set to Dark mode while Core Apps is set to Light mode).
+- **Setting Re-enablement on Unlock** — Ensured setting and keybinding inputs cleanly re-enable and remove disabled overlays as soon as a lock is removed.
+- **Hybrid Settings & Custom Elements** — Expanded setting element detection to cover Foundry V14 custom element inputs (such as color pickers and range pickers) rendered without standard setting attributes.
+- **Accurate Player Lock Notifications** — When a player attempts to change a player-locked setting, they now receive a clear notice that the setting is locked by the GM rather than a generic hard-lock notice.
+
 ## [14.1.0] — 2026-08-01
 
 ### Added

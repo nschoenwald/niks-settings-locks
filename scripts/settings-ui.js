@@ -12,6 +12,7 @@ import {
     canManageLocks
 } from "./lock-store.js";
 import { refreshHardLockSet } from "./enforcer.js";
+import { renderConflictBanner } from "./conflict-guard.js";
 
 // ---------------------------------------------------------------------------
 //  Public API
@@ -34,10 +35,19 @@ export function initSettingsUI() {
  * @param {HTMLElement} html  The application element
  */
 function _onRenderSettingsConfig(app, html) {
+    // Conflict Guard: remove any duplicate Carolingian UI generic lock icons
+    html.querySelectorAll(".sk-lock").forEach(el => el.remove());
+
     const map = getLockMap();
     const isManager = canManageLocks();
 
-    // Collect all lockable setting keys for fallback matching
+    // Conflict Guard: show warning banner at the top of SettingsConfig if Carolingian generic locks are active
+    if (isManager) {
+        const bannerTarget = html.querySelector(".main") || html.querySelector("form") || html;
+        renderConflictBanner(bannerTarget, () => app.render());
+    }
+
+    // Collect all lockable setting keys for matching
     const lockableKeys = new Set();
     for (const [key, config] of game.settings.settings.entries()) {
         if (config.scope === "client" || config.scope === "user") {
@@ -45,29 +55,29 @@ function _onRenderSettingsConfig(app, html) {
         }
     }
 
+    const processedKeys = new Set();
+
     // Strategy 1: form-groups with data-setting-id (common in V14 SettingsConfig)
     const formGroups = html.querySelectorAll(".form-group[data-setting-id]");
+    for (const group of formGroups) {
+        const settingKey = group.dataset.settingId;
+        if (!settingKey || !lockableKeys.has(settingKey)) continue;
+        processedKeys.add(settingKey);
+        _processFormGroup(group, settingKey, map, isManager);
+    }
 
-    if (formGroups.length > 0) {
-        for (const group of formGroups) {
-            const settingKey = group.dataset.settingId;
-            if (!settingKey || !lockableKeys.has(settingKey)) continue;
-            _processFormGroup(group, settingKey, map, isManager);
-        }
-    } else {
-        // Strategy 2: fallback — find inputs/selects whose name matches "namespace.key"
-        // and walk up to their .form-group parent
-        const inputs = html.querySelectorAll("input[name], select[name], textarea[name]");
-        const processed = new Set();
-
+    // Strategy 2: fallback for any remaining lockable settings — find inputs/selects/custom-elements
+    // whose name matches "namespace.key" and walk up to their .form-group parent
+    if (processedKeys.size < lockableKeys.size) {
+        const inputs = html.querySelectorAll("[name]");
         for (const input of inputs) {
-            const name = input.name;
-            if (!name || !lockableKeys.has(name) || processed.has(name)) continue;
+            const name = input.name || input.getAttribute("name");
+            if (!name || !lockableKeys.has(name) || processedKeys.has(name)) continue;
 
             const group = input.closest(".form-group");
             if (!group) continue;
 
-            processed.add(name);
+            processedKeys.add(name);
             _processFormGroup(group, name, map, isManager);
         }
     }
@@ -85,9 +95,15 @@ function _processFormGroup(group, settingKey, map, isManager) {
     const lock = map[settingKey] ?? null;
     _injectLockIcon(group, settingKey, lock, isManager);
 
-    // Disable hard-locked setting inputs for ALL users (locks apply to every client)
-    if (lock?.type === "hard") {
+    // Disable inputs:
+    // - "hard": disabled for ALL users
+    // - "player": disabled for non-managers only (managers keep input enabled for personal value)
+    const isHard = lock?.type === "hard";
+    const isPlayerLocked = !isManager && (lock?.type === "player" || lock?.type === "gate");
+    if (isHard || isPlayerLocked) {
         _disableSettingInputs(group);
+    } else {
+        _enableSettingInputs(group);
     }
 }
 
@@ -110,14 +126,18 @@ function _injectLockIcon(group, settingKey, lock, isManager) {
     _updateLockIcon(icon, lock, isManager);
 
     if (isManager) {
-        // Left click: cycle forward (unlocked → soft → hard → unlocked)
+        // Left click: cycle forward (or Alt+click: toggle player-only lock)
         icon.addEventListener("click", async (event) => {
             event.preventDefault();
             event.stopPropagation();
-            await _cycleLockForward(icon, settingKey, group);
+            if (event.altKey) {
+                await _togglePlayerLock(icon, settingKey, group);
+            } else {
+                await _cycleLockForward(icon, settingKey, group);
+            }
         });
 
-        // Right click: cycle backward (unlocked → hard → soft → unlocked)
+        // Right click: cycle backward
         icon.addEventListener("contextmenu", async (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -138,7 +158,7 @@ function _injectLockIcon(group, settingKey, lock, isManager) {
  * Update the lock icon appearance based on the lock state.
  */
 function _updateLockIcon(icon, lock, isManager) {
-    icon.classList.remove("nsl-unlocked", "nsl-soft", "nsl-hard");
+    icon.classList.remove("nsl-unlocked", "nsl-soft", "nsl-hard", "nsl-player");
     icon.innerHTML = "";
 
     const i = document.createElement("i");
@@ -159,6 +179,13 @@ function _updateLockIcon(icon, lock, isManager) {
             ? game.i18n.localize("NSL.Tooltip.Soft")
             : game.i18n.localize("NSL.Tooltip.SoftLockedByGM");
         icon.style.display = "";
+    } else if (lock.type === "player" || lock.type === "gate") {
+        icon.classList.add("nsl-player");
+        i.className = "fa-solid fa-user-lock";
+        icon.title = isManager
+            ? game.i18n.localize("NSL.Tooltip.Player")
+            : game.i18n.localize("NSL.Tooltip.LockedByGM");
+        icon.style.display = "";
     } else if (lock.type === "hard") {
         icon.classList.add("nsl-hard");
         i.className = "fa-solid fa-lock";
@@ -172,7 +199,7 @@ function _updateLockIcon(icon, lock, isManager) {
 }
 
 /**
- * Cycle the lock state forward: unlocked → soft → hard → unlocked.
+ * Cycle the lock state forward: unlocked → soft → hard → player → unlocked.
  */
 async function _cycleLockForward(icon, settingKey, group) {
     const lock = getLockMap()[settingKey] ?? null;
@@ -190,8 +217,14 @@ async function _cycleLockForward(icon, settingKey, group) {
         await setLock(settingKey, "hard", value);
         _updateLockIcon(icon, { type: "hard" }, true);
         _disableSettingInputs(group);
+    } else if (lock.type === "hard") {
+        // hard → player (managers keep inputs enabled for personal value)
+        const value = game.settings.get(namespace, key);
+        await setLock(settingKey, "player", value);
+        _updateLockIcon(icon, { type: "player" }, true);
+        _enableSettingInputs(group);
     } else {
-        // hard → unlocked
+        // player → unlocked
         await removeLock(settingKey);
         _updateLockIcon(icon, null, true);
         _enableSettingInputs(group);
@@ -203,7 +236,7 @@ async function _cycleLockForward(icon, settingKey, group) {
 }
 
 /**
- * Cycle the lock state backward: unlocked → hard → soft → unlocked.
+ * Cycle the lock state backward: unlocked → player → hard → soft → unlocked.
  */
 async function _cycleLockBackward(icon, settingKey, group) {
     const lock = getLockMap()[settingKey] ?? null;
@@ -211,7 +244,13 @@ async function _cycleLockBackward(icon, settingKey, group) {
     const key = keyParts.join(".");
 
     if (!lock) {
-        // unlocked → hard
+        // unlocked → player
+        const value = game.settings.get(namespace, key);
+        await setLock(settingKey, "player", value);
+        _updateLockIcon(icon, { type: "player" }, true);
+        // Managers keep inputs enabled
+    } else if (lock.type === "player" || lock.type === "gate") {
+        // player → hard
         const value = game.settings.get(namespace, key);
         await setLock(settingKey, "hard", value);
         _updateLockIcon(icon, { type: "hard" }, true);
@@ -226,6 +265,32 @@ async function _cycleLockBackward(icon, settingKey, group) {
         // soft → unlocked
         await removeLock(settingKey);
         _updateLockIcon(icon, null, true);
+        _enableSettingInputs(group);
+    }
+
+    refreshHardLockSet();
+    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+}
+
+/**
+ * Alt+Click direct shortcut: toggle player-only lock state.
+ */
+async function _togglePlayerLock(icon, settingKey, group) {
+    const lock = getLockMap()[settingKey] ?? null;
+    const [namespace, ...keyParts] = settingKey.split(".");
+    const key = keyParts.join(".");
+
+    if (lock?.type === "player" || lock?.type === "gate") {
+        // Already player lock -> unlock
+        await removeLock(settingKey);
+        _updateLockIcon(icon, null, true);
+        _enableSettingInputs(group);
+    } else {
+        // Set directly to player lock
+        const value = game.settings.get(namespace, key);
+        await setLock(settingKey, "player", value);
+        _updateLockIcon(icon, { type: "player" }, true);
+        _enableSettingInputs(group);
     }
 
     refreshHardLockSet();
@@ -296,6 +361,7 @@ function _injectModuleButtons(app, html) {
     importBtn.addEventListener("click", async (e) => {
         e.preventDefault();
         await importLocks();
+        refreshHardLockSet();
         app.render();
     });
 

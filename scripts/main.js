@@ -10,6 +10,7 @@ import { initEnforcer, registerSocketListener, applyLocks } from "./enforcer.js"
 import { initSettingsUI } from "./settings-ui.js";
 import { initControlsUI } from "./controls-ui.js";
 import { LockManagerApp } from "./lock-manager.js";
+import { checkConflictOnReady } from "./conflict-guard.js";
 
 // ---------------------------------------------------------------------------
 //  Initialization
@@ -74,4 +75,6 @@ Hooks.once("ready", async () => {
     registerSocketListener();
     // Apply all locks on this client
     await applyLocks();
+    // Check for overlapping module lock settings (Carolingian UI)
+    checkConflictOnReady();
 });

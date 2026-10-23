@@ -5,21 +5,32 @@
     "LockType": {
       "None": "Unlocked",
       "Soft": "Soft Lock",
-      "Hard": "Hard Lock"
+      "Hard": "Hard Lock",
+      "Player": "Player Lock"
     },
 
     "Tooltip": {
-      "Unlocked": "Click to cycle lock state.\nUnlocked — players can freely change this.",
+      "Unlocked": "Unlocked — players can freely change this.\nClick to cycle to Soft Lock. Right-click to Player Lock. Alt+click to toggle Player Lock.",
       "Soft": "Soft Locked — the GM's value is applied once. Players may override it permanently.\nClick to cycle to Hard Lock. Right-click to unlock.",
-      "Hard": "Hard Locked — forced to the GM's value. Players cannot change it.\nClick to unlock. Right-click to cycle to Soft Lock.",
+      "Hard": "Hard Locked — forced to the GM's value for all clients.\nClick to cycle to Player Lock. Right-click to cycle to Soft Lock.",
+      "Player": "Player Locked — forced for players only. The GM keeps their own personal setting.\nClick to unlock. Right-click to cycle to Hard Lock. Alt+click to toggle.",
       "LockedByGM": "This is locked by the GM.",
       "SoftLockedByGM": "This was set by the GM. You may change it if you wish."
+    },
+
+    "Conflict": {
+      "BannerTitle": "Conflict Detected: Carolingian UI",
+      "BannerText": "Carolingian UI's \"Enable client settings lock for core and other modules\" is enabled alongside Nik's Settings Locks. To prevent duplicate icons and desynchronized enforcement, please disable it.",
+      "BannerButton": "Disable in Carolingian UI",
+      "ResolvedNotification": "Disabled Carolingian UI generic locks. Nik's Settings Locks is managing your settings locks.",
+      "ReadyWarn": "Carolingian UI's generic settings lock is enabled. This conflicts with Nik's Settings Locks. Open the Lock Manager or Configure Settings to resolve it."
     },
 
     "Notifications": {
       "LocksAppliedOne": "Applied {count} lock.",
       "LocksAppliedMany": "Applied {count} locks.",
       "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
+      "PlayerLockBlocked": "Cannot change \"{name}\" — it is locked for players by the GM.",
       "ExportSuccess": "Locks exported successfully.",
       "ImportSuccessOne": "Imported {count} lock successfully.",
       "ImportSuccessMany": "Imported {count} locks successfully.",
