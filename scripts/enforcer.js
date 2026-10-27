@@ -10,10 +10,10 @@
 
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
-    getLockMap, getLock, setLock, shouldApplySoftLock, markSoftLockApplied,
-    canManageLocks
+    getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied,
+    canManageLocks, LOCKS_CHANGED_HOOK
 } from "./lock-store.js";
-import { promptSoftLockUpdates } from "./soft-lock-prompt.js";
+import { promptLockUpdates } from "./lock-update-prompt.js";
 
 /** Track which keys (settings + keybindings) are currently hard-locked. */
 const _hardLockedKeys = new Set();
@@ -21,21 +21,31 @@ const _hardLockedKeys = new Set();
 /** Flag to bypass our own set() wrappers when we apply locks internally. */
 let _bypassEnforcement = false;
 
-/** Batching for soft lock updates. */
-let _pendingSoftLockUpdates = new Map();
-let _softLockUpdateTimeout = null;
+/** Batching for the GM's changes to locked items, per lock type, so one prompt covers a whole form save. */
+const _pendingLockUpdates = { soft: new Map(), hard: new Map() };
+const _lockUpdateTimeouts = { soft: null, hard: null };
 
-function _queueSoftLockUpdate(key, value) {
-    _pendingSoftLockUpdates.set(key, value);
-    if (_softLockUpdateTimeout !== null) {
-        clearTimeout(_softLockUpdateTimeout);
+function _queueLockUpdate(type, key, value) {
+    _pendingLockUpdates[type].set(key, value);
+    if (_lockUpdateTimeouts[type] !== null) {
+        clearTimeout(_lockUpdateTimeouts[type]);
     }
-    _softLockUpdateTimeout = setTimeout(() => {
-        const updates = new Map(_pendingSoftLockUpdates);
-        _pendingSoftLockUpdates.clear();
-        _softLockUpdateTimeout = null;
-        promptSoftLockUpdates(updates);
+    _lockUpdateTimeouts[type] = setTimeout(() => {
+        const updates = new Map(_pendingLockUpdates[type]);
+        _pendingLockUpdates[type].clear();
+        _lockUpdateTimeouts[type] = null;
+        // Declined changes to values locked for everyone are undone: the lock binds the GM too
+        const onDecline = type === "hard" ? _restoreLockedValues : undefined;
+        promptLockUpdates(type, updates, { onDecline });
     }, 100);
+}
+
+/**
+ * Put this client's values back to their locked values.
+ * @param {string[]} keys
+ */
+async function _restoreLockedValues(keys) {
+    for (const key of keys) await applyLock(key);
 }
 
 // ---------------------------------------------------------------------------
@@ -62,42 +72,50 @@ export function registerSocketListener() {
 /**
  * Apply all locks from the world lock map to this client.
  * Called on "ready" and when the GM broadcasts a lock change.
+ * @returns {Promise<Set<string>>} The lock keys whose values were changed on this client
  */
 export async function applyLocks() {
     const map = getLockMap();
     const entries = Object.entries(map);
+    const changedKeys = new Set();
 
     // Clear the hard-lock set and rebuild it
     _hardLockedKeys.clear();
 
-    if (!entries.length) return;
+    if (!entries.length) return changedKeys;
 
-    let applied = 0;
     let needsReload = false;
 
     for (const [lockKey, lock] of entries) {
-        // Determine if this is a keybinding or a setting
-        const isKeybinding = lockKey.startsWith(KB_PREFIX);
-
-        if (isKeybinding) {
-            applied += await _applyKeybindingLock(lockKey, lock);
-        } else {
-            const result = await _applySettingLock(lockKey, lock);
-            applied += result.applied;
-            if (result.needsReload) needsReload = true;
-        }
+        const result = await _applyLockEntry(lockKey, lock);
+        if (result.applied) changedKeys.add(lockKey);
+        if (result.needsReload) needsReload = true;
     }
 
+    const applied = changedKeys.size;
     if (applied > 0) {
         console.log(`${MODULE_ID} | Applied ${applied} locked item(s).`);
         const localeKey = applied === 1 ? "NSL.Notifications.LocksAppliedOne" : "NSL.Notifications.LocksAppliedMany";
         ui.notifications?.info(game.i18n.format(localeKey, { count: applied }));
     }
 
-    if (needsReload) {
-        ui.notifications?.warn(game.i18n.localize("NSL.Notifications.ReloadForcing"));
-        setTimeout(() => window.location.reload(), 1500);
-    }
+    if (needsReload) _handleReload();
+    return changedKeys;
+}
+
+/**
+ * Apply a single lock from the world lock map to this client.
+ * Used when a manager changes a lock in a way that also changes their own value
+ * (e.g. Player Lock → Hard Lock, where the locked player value becomes the value for everyone).
+ * @param {string} lockKey  "namespace.key" or "kb:namespace.action"
+ * @returns {Promise<boolean>} Whether the value was changed on this client
+ */
+export async function applyLock(lockKey) {
+    const lock = getLock(lockKey);
+    if (!lock) return false;
+    const result = await _applyLockEntry(lockKey, lock);
+    if (result.needsReload) _handleReload();
+    return result.applied > 0;
 }
 
 /**
@@ -108,7 +126,7 @@ export function refreshHardLockSet() {
     _hardLockedKeys.clear();
     const map = getLockMap();
     for (const [key, lock] of Object.entries(map)) {
-        if (lock.type !== "hard" && lock.type !== "player" && lock.type !== "gate") continue;
+        if (lock.type !== "hard" && lock.type !== "player") continue;
 
         // Keybinding locks are always safe (stored client-side)
         if (key.startsWith(KB_PREFIX)) {
@@ -135,6 +153,34 @@ export function isHardLocked(key) {
 }
 
 // ---------------------------------------------------------------------------
+//  Lock Application Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply one lock entry, dispatching to the setting or keybinding handler.
+ * @returns {Promise<{applied: number, needsReload: boolean}>}
+ */
+async function _applyLockEntry(lockKey, lock) {
+    if (lockKey.startsWith(KB_PREFIX)) {
+        return { applied: await _applyKeybindingLock(lockKey, lock), needsReload: false };
+    }
+    return _applySettingLock(lockKey, lock);
+}
+
+/**
+ * Handle a lock that changed a setting which requires a reload.
+ * Players are reloaded automatically; managers are asked first so they never lose work.
+ */
+function _handleReload() {
+    if (canManageLocks()) {
+        foundry.applications.settings.SettingsConfig.reloadConfirm({ world: false });
+        return;
+    }
+    ui.notifications?.warn(game.i18n.localize("NSL.Notifications.ReloadForcing"));
+    setTimeout(() => window.location.reload(), 1500);
+}
+
+// ---------------------------------------------------------------------------
 //  Setting Lock Application
 // ---------------------------------------------------------------------------
 
@@ -147,7 +193,7 @@ async function _applySettingLock(settingKey, lock) {
     if (!config) return { applied: 0, needsReload: false };
     if (config.scope !== "client" && config.scope !== "user") return { applied: 0, needsReload: false };
 
-    const isPlayerLock = type === "player" || type === "gate";
+    const isPlayerLock = type === "player";
     const isHardLock = type === "hard";
 
     if (isHardLock || isPlayerLock) {
@@ -215,7 +261,7 @@ async function _applyKeybindingLock(lockKey, lock) {
     const actionConfig = game.keybindings.actions.get(actionKey);
     if (!actionConfig) return 0;
 
-    const isPlayerLock = type === "player" || type === "gate";
+    const isPlayerLock = type === "player";
     const isHardLock = type === "hard";
 
     if (isHardLock || isPlayerLock) {
@@ -286,12 +332,8 @@ function _wrapSettingsSet() {
             const result = await wrapped(namespace, key, value, ...rest);
             const lock = getLock(settingKey);
             if (lock && !_valuesEqual(value, lock.value)) {
-                if (lock.type === "hard") {
-                    await setLock(settingKey, lock.type, value);
-                    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-                } else if (lock.type === "soft") {
-                    _queueSoftLockUpdate(settingKey, value);
-                }
+                // Player locks: the GM's value is personal, nothing to do
+                if (lock.type === "hard" || lock.type === "soft") _queueLockUpdate(lock.type, settingKey, value);
             }
             return result;
         }
@@ -313,7 +355,7 @@ function _wrapSettingsSet() {
             const name = config.name
                 ? game.i18n.localize(config.name)
                 : settingKey;
-            const notifKey = (lock?.type === "player" || lock?.type === "gate")
+            const notifKey = lock?.type === "player"
                 ? "NSL.Notifications.PlayerLockBlocked"
                 : "NSL.Notifications.HardLockBlocked";
             ui.notifications.warn(game.i18n.format(notifKey, { name }));
@@ -339,12 +381,8 @@ function _wrapKeybindingsSet() {
             const result = await wrapped(namespace, action, bindings, ...rest);
             const lock = getLock(lockKey);
             if (lock && !_valuesEqual(bindings, lock.value)) {
-                if (lock.type === "hard") {
-                    await setLock(lockKey, lock.type, bindings);
-                    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-                } else if (lock.type === "soft") {
-                    _queueSoftLockUpdate(lockKey, bindings);
-                }
+                // Player locks: the GM's bindings are personal, nothing to do
+                if (lock.type === "hard" || lock.type === "soft") _queueLockUpdate(lock.type, lockKey, bindings);
             }
             return result;
         }
@@ -359,7 +397,7 @@ function _wrapKeybindingsSet() {
             const name = actionConfig?.name
                 ? game.i18n.localize(actionConfig.name)
                 : `${namespace}.${action}`;
-            const notifKey = (lock?.type === "player" || lock?.type === "gate")
+            const notifKey = lock?.type === "player"
                 ? "NSL.Notifications.PlayerLockBlocked"
                 : "NSL.Notifications.HardLockBlocked";
             ui.notifications.warn(game.i18n.format(notifKey, { name }));
@@ -386,10 +424,11 @@ function _registerSocketListener() {
             }
 
             // Apply locks on this client (player locks are safely skipped for managers)
-            await applyLocks();
+            const changedKeys = await applyLocks();
 
-            // Re-render open config windows using the V14 application registry
-            _rerenderOpenApp("SettingsConfig");
+            // Configure Settings is refreshed in place so unsaved edits survive.
+            // ControlsConfig keeps its pending edits across renders, so a re-render is safe.
+            Hooks.callAll(LOCKS_CHANGED_HOOK, changedKeys);
             _rerenderOpenApp("ControlsConfig");
             _rerenderOpenApp("LockManagerApp");
         }

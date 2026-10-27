@@ -2,21 +2,32 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
-## [14.2.0] — 2026-10-18
+## [14.2.0] — 2026-10-26
 
 ### Added
-- **Player-Only Lock Mode (`Player Lock`)** — Added a dedicated lock mode that enforces locked values on players while allowing the GM to retain their own custom client setting. Changes made by the GM remain personal and do not overwrite the locked player value. Features a distinct blue icon (`fa-user-lock`) and can be toggled directly via **Alt+Click** on any lock icon.
-- **Conflict Guard for Carolingian UI** — Automatically detects when Carolingian UI's generic settings lock ("Enable client settings lock for core and other modules") is enabled. Suppresses duplicate lock icons in Configure Settings and presents a one-click banner for the GM to disable the conflicting setting cleanly.
+- **Lock picker** — Clicking a lock icon (in Configure Settings, Configure Controls or the Lock Manager) now opens a small menu listing every lock option with a short explanation, with the current one ticked. No more clicking through states or remembering right-click order. The icons can also be reached and opened with the keyboard (Tab, then Enter or Space).
+- **Locked for players** — A new lock option (blue user-lock icon) that keeps players on a value while the GM keeps their own personal setting. Changing your own setting as GM doesn't change what players get.
+- **Set players' locked controls from your own** — In the Lock Manager, controls that are locked for players have a button that copies your current key bindings into the lock.
+- **Carolingian UI conflict warning** — If Carolingian UI's "Enable client settings lock for core and other modules" is turned on, GMs see a banner in Configure Settings and the Lock Manager with a one-click button to turn it off (followed by a reload prompt). Carolingian's duplicate lock icons are hidden for GMs while the banner is shown.
+
+### Changed
+- **Clearer names and icons** — Soft Lock is now **Suggested value** (pin icon), Hard Lock is now **Locked for everyone** (lock icon), and the new option is **Locked for players** (user-lock icon). Each option has its own icon shape, not just its own colour. Existing locks keep working unchanged.
+- **Switching lock options keeps the locked value** — Locking an unlocked item uses your current value. Changing an existing lock to another option keeps its locked value; switching to "Locked for everyone" applies that value to you as well.
+- **Changing something locked for everyone now asks first** — If you change a setting or control that is locked for everyone (for example from a sub-menu or another module), you're asked whether to update it for everyone or undo your change. Before, the new value silently went to every player.
+- **GMs no longer receive suggested values** — Suggested values are applied to players only. GMs, including co-GMs, keep their own values.
+- **No surprise reloads for GMs** — When a lock change needs a reload on a GM's client (for example after importing locks), the GM is asked first instead of being reloaded automatically.
+- **Clearer update prompt** — The prompt after changing locked items now shows the old and new value for each item.
 
 ### Fixed
-- **Multi-GM Live Synchronization** — Fixed an issue where co-GMs and Assistant GMs did not receive live socket updates or have their open settings and Lock Manager windows refreshed when another GM modified locks. Soft locks now safely bypass co-GM clients to prevent overriding their personal settings.
-- **Import Lock Application** — Ensured imported hard locks and player locks immediately apply their values to the importing client and update runtime enforcement without requiring a reload.
-- **Lock Removal Cleanup** — Fixed an issue where clearing all locks or removing the last lock failed to clear client-side lock prevention until reload.
-- **Conflict Banner Layout** — Fixed conflict warning banner positioning in Configure Settings so it neatly spans the top of the main category pane rather than compressing the sidebar tabs. Disabling conflicting generic locks now prompts for a world reload to ensure all wrappers unregister cleanly.
-- **Theme Combination Compatibility** — Added full CSS styling support for mixed light and dark mode configurations (e.g., Core Interface set to Dark mode while Core Apps is set to Light mode).
-- **Setting Re-enablement on Unlock** — Ensured setting and keybinding inputs cleanly re-enable and remove disabled overlays as soon as a lock is removed.
-- **Hybrid Settings & Custom Elements** — Expanded setting element detection to cover Foundry V14 custom element inputs (such as color pickers and range pickers) rendered without standard setting attributes.
-- **Accurate Player Lock Notifications** — When a player attempts to change a player-locked setting, they now receive a clear notice that the setting is locked by the GM rather than a generic hard-lock notice.
+- **Trusted Player lock managers** — If the minimum role for managing locks is set to Trusted Player, those users can now open the Lock Manager and save lock changes (a GM must be logged in). Before, their changes failed with a permission error.
+- **Re-send message** — Re-sending suggested values (formerly "Re-enforce Soft Locks") now correctly says connected players get them right away, not only on their next login.
+- **Multiple GMs** — Co-GMs and Assistant GMs now receive lock changes live, and their open Lock Manager windows update.
+- **Open Configure Settings windows keep unsaved edits** — When the GM changes a lock, other users' open Configure Settings windows update their lock icons and locked values without discarding changes they haven't saved.
+- **Importing locks** — Imported locks take effect immediately, without a reload.
+- **Removing locks** — Clearing all locks or removing the last lock now unblocks settings immediately instead of after a reload, and settings re-enable as soon as a lock is removed.
+- **Settings with custom inputs** — Lock icons now also appear on settings that use special inputs such as color or range pickers.
+- **Light apps on a dark interface** — Lock icons and the Lock Manager are readable when Core Interface is dark and Core Apps is light (and vice versa).
+- **Clearer message for players** — Trying to change a setting locked for players now says the GM has locked it for players.
 
 ## [14.1.0] — 2026-08-01
 

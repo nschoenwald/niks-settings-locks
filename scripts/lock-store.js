@@ -16,7 +16,14 @@ export const SETTING_MIN_ROLE = "minimumRole";
 export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
 export const KB_PREFIX = "kb:";
 
-import { refreshHardLockSet, applyLocks } from "./enforcer.js";
+/** All valid lock types. */
+export const LOCK_TYPES = ["soft", "hard", "player"];
+
+/** User query (CONFIG.queries) a lock manager without world-setting permission sends to the active GM. */
+export const QUERY_SET_LOCK_MAP = `${MODULE_ID}.setLockMap`;
+
+/** Hook fired on a client after it re-applied locks from a GM broadcast. Receives the Set of changed lock keys. */
+export const LOCKS_CHANGED_HOOK = `${MODULE_ID}.locksChanged`;
 
 const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
 
@@ -49,11 +56,7 @@ export function canManageLocks() {
  */
 export function getLockMap() {
     try {
-        const raw = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
-        for (const entry of Object.values(raw)) {
-            if (entry && entry.type === "gate") entry.type = "player";
-        }
-        return raw;
+        return foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
     } catch {
         return {};
     }
@@ -61,10 +64,43 @@ export function getLockMap() {
 
 /**
  * Persist the full lock map to world settings.
+ * Lock managers who can't write world settings (e.g. Trusted Players) ask the active GM to save it.
  * @param {Object} map
  */
 export async function setLockMap(map) {
-    await game.settings.set(MODULE_ID, SETTING_LOCK_MAP, map ?? {});
+    if (game.user.can("SETTINGS_MODIFY")) {
+        await game.settings.set(MODULE_ID, SETTING_LOCK_MAP, map ?? {});
+        return;
+    }
+
+    const gm = game.users.activeGM;
+    if (!gm) {
+        ui.notifications.warn(game.i18n.localize("NSL.Notifications.NoActiveGM"));
+        throw new Error(`${MODULE_ID} | No active GM to save the lock map`);
+    }
+    await gm.query(QUERY_SET_LOCK_MAP, { map: map ?? {} });
+}
+
+/**
+ * Register the query handler that saves the lock map on behalf of a lock manager.
+ * Runs on the active GM's client; the querying user comes from the server, so it can be trusted.
+ */
+export function registerLockMapQuery() {
+    CONFIG.queries[QUERY_SET_LOCK_MAP] = async ({ map } = {}, { user } = {}) => {
+        let minRole = CONST.USER_ROLES.GAMEMASTER;
+        try {
+            minRole = game.settings.get(MODULE_ID, SETTING_MIN_ROLE);
+        } catch {
+            // Setting not registered — keep GM-only
+        }
+        if (!user || user.role < minRole) throw new Error("You are not allowed to manage settings locks.");
+        if (foundry.utils.getType(map) !== "Object") throw new Error("Invalid lock map.");
+        for (const [key, entry] of Object.entries(map)) {
+            if (!LOCK_TYPES.includes(entry?.type)) throw new Error(`Invalid lock entry: ${key}`);
+        }
+        await game.settings.set(MODULE_ID, SETTING_LOCK_MAP, map);
+        return true;
+    };
 }
 
 /**
@@ -85,11 +121,10 @@ export function getLock(settingKey) {
  * @param {*} value
  */
 export async function setLock(settingKey, type, value) {
-    const normalizedType = type === "gate" ? "player" : type;
     const map = getLockMap();
     const existing = map[settingKey];
     const rev = (existing?.rev ?? 0) + 1;
-    map[settingKey] = { type: normalizedType, value, rev };
+    map[settingKey] = { type, value, rev };
     await setLockMap(map);
 }
 
@@ -214,7 +249,8 @@ export function exportLocks() {
 
 /**
  * Import locks from a JSON file. Prompts for file selection.
- * @returns {Promise<void>}
+ * The caller is responsible for applying the imported locks on this client (see applyLocks).
+ * @returns {Promise<number>} The number of imported locks (0 if cancelled or failed)
  */
 export async function importLocks() {
     return new Promise((resolve) => {
@@ -223,7 +259,7 @@ export async function importLocks() {
         input.accept = ".json";
         input.addEventListener("change", async (event) => {
             const file = event.target.files?.[0];
-            if (!file) return resolve();
+            if (!file) return resolve(0);
 
             try {
                 const text = await file.text();
@@ -232,7 +268,7 @@ export async function importLocks() {
                 // Validate format
                 if (data?.format !== MODULE_ID || typeof data?.locks !== "object") {
                     ui.notifications.error(game.i18n.localize("NSL.Import.InvalidFormat"));
-                    return resolve();
+                    return resolve(0);
                 }
 
                 const incoming = data.locks;
@@ -246,22 +282,21 @@ export async function importLocks() {
                     defaultYes: false
                 });
 
-                if (!confirmed) return resolve();
+                if (!confirmed) return resolve(0);
 
                 // Merge into existing map (only valid entries)
                 const map = getLockMap();
                 let imported = 0;
                 for (const [key, entry] of Object.entries(incoming)) {
                     // Validate entry structure
-                    const rawType = entry?.type === "gate" ? "player" : entry?.type;
-                    if (!entry || (rawType !== "soft" && rawType !== "hard" && rawType !== "player")) {
+                    if (!entry || !LOCK_TYPES.includes(entry.type)) {
                         console.warn(`${MODULE_ID} | Skipping invalid lock entry: ${key}`, entry);
                         continue;
                     }
                     // Bump rev so soft locks re-apply
                     const existingRev = map[key]?.rev ?? 0;
                     map[key] = {
-                        type: rawType,
+                        type: entry.type,
                         value: entry.value,
                         rev: existingRev + 1
                     };
@@ -269,21 +304,18 @@ export async function importLocks() {
                 }
 
                 await setLockMap(map);
-                refreshHardLockSet();
-
-                // Apply imported locks on this client
-                await applyLocks();
 
                 // Broadcast to all connected clients
                 game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
                 const successKey = imported === 1 ? "NSL.Notifications.ImportSuccessOne" : "NSL.Notifications.ImportSuccessMany";
                 ui.notifications.info(game.i18n.format(successKey, { count: imported }));
+                return resolve(imported);
             } catch (err) {
                 console.error(`${MODULE_ID} | Import failed:`, err);
                 ui.notifications.error(game.i18n.format("NSL.Notifications.ImportFailed", { error: err.message }));
             }
-            resolve();
+            resolve(0);
         });
         input.click();
     });

@@ -5,7 +5,7 @@
  * wires up the enforcer and UI hooks.
  */
 
-import { MODULE_ID, SETTING_LOCK_MAP, SETTING_MIN_ROLE, canManageLocks } from "./lock-store.js";
+import { MODULE_ID, SETTING_LOCK_MAP, SETTING_MIN_ROLE, canManageLocks, registerLockMapQuery } from "./lock-store.js";
 import { initEnforcer, registerSocketListener, applyLocks } from "./enforcer.js";
 import { initSettingsUI } from "./settings-ui.js";
 import { initControlsUI } from "./controls-ui.js";
@@ -19,7 +19,7 @@ import { checkConflictOnReady } from "./conflict-guard.js";
 Hooks.once("init", () => {
 
     // Register the world setting that stores all lock data.
-    // Only GM can write to it (restricted: true), but all clients can read it.
+    // Only users with world-setting permission can write it; other lock managers go through the GM query below.
     game.settings.register(MODULE_ID, SETTING_LOCK_MAP, {
         name: "Lock Map",
         hint: "Internal storage for all settings locks. Do not modify manually.",
@@ -47,7 +47,11 @@ Hooks.once("init", () => {
         requiresReload: true
     });
 
-    // Register a menu button to open the Lock Manager
+    // Lets lock managers without world-setting permission (e.g. Trusted Players) save locks via the active GM
+    registerLockMapQuery();
+
+    // Register a menu button to open the Lock Manager.
+    // Restricted menus are hidden from users without world-setting permission; "ready" lifts this for lock managers.
     game.settings.registerMenu(MODULE_ID, "lockManager", {
         name: game.i18n.localize("NSL.Settings.OpenManager"),
         hint: game.i18n.localize("NSL.Settings.OpenManagerHint"),
@@ -71,6 +75,12 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", async () => {
+    // Show the Lock Manager button to every lock manager, including roles below Assistant GM
+    if (canManageLocks()) {
+        const menu = game.settings.menus.get(`${MODULE_ID}.lockManager`);
+        if (menu) menu.restricted = false;
+    }
+
     // Register socket listener (game.socket is now available)
     registerSocketListener();
     // Apply all locks on this client

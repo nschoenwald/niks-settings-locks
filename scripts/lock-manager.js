@@ -11,8 +11,10 @@ import {
     getLockMap, setLock, removeLock, setLockMap,
     exportLocks, importLocks, reenforceSoftLocks
 } from "./lock-store.js";
-import { refreshHardLockSet } from "./enforcer.js";
+import { refreshHardLockSet, applyLocks } from "./enforcer.js";
 import { renderConflictBanner } from "./conflict-guard.js";
+import { formatBinding } from "./format.js";
+import { createLockIcon, getLockState, bindLockPicker, changeLockType } from "./lock-picker.js";
 
 // ---------------------------------------------------------------------------
 //  Lock Manager Application
@@ -35,8 +37,15 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         }
     };
 
-    /** Guard against rapid double-clicks on lock cycling. */
-    _lockCycleInProgress = false;
+    /** Guard against overlapping lock changes. */
+    _lockChangeInProgress = false;
+
+    /** @override */
+    _onFirstRender(context, options) {
+        super._onFirstRender(context, options);
+        // Lock picker for every row's lock control (the window element persists across renders)
+        bindLockPicker(this.element, (target, type) => this._changeLock(target.dataset.lockKey, type));
+    }
 
     /** @override */
     async _prepareContext() {
@@ -252,8 +261,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         importBtn.classList.add("nsl-btn");
         importBtn.innerHTML = `<i class="fa-solid fa-file-import"></i> ${game.i18n.localize("NSL.Manager.ImportButton")}`;
         importBtn.addEventListener("click", async () => {
-            await importLocks();
-            refreshHardLockSet();
+            if (await importLocks()) await applyLocks();
             this.render();
         });
 
@@ -416,11 +424,12 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 // Lock type
                 const lockCell = document.createElement("td");
                 lockCell.classList.add("nsl-col-lock");
-                const normalizedType = (o.lockType === "gate" || o.lockType === "player") ? "player" : o.lockType;
+                const orphanState = getLockState(o.lockType);
                 const lockBadge = document.createElement("span");
-                lockBadge.classList.add("nsl-lock-control", `nsl-${normalizedType}`);
+                lockBadge.classList.add("nsl-lock-control", orphanState.cssClass);
+                lockBadge.dataset.tooltip = orphanState.label;
                 const lockIcon = document.createElement("i");
-                lockIcon.className = normalizedType === "player" ? "fa-solid fa-user-lock" : "fa-solid fa-lock";
+                lockIcon.className = orphanState.icon;
                 lockBadge.appendChild(lockIcon);
                 lockCell.appendChild(lockBadge);
                 row.appendChild(lockCell);
@@ -516,7 +525,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         row.dataset.itemType = item.itemType;
         row.dataset.isHidden = item.isHidden ? "true" : "false";
 
-        const lockStateText = item.lockType === "none" ? "unlocked" : `locked ${item.lockType}`;
+        // Search matches the internal type and the shown name (e.g. "soft", "suggested value")
+        const lockStateText = `${item.lockType === "none" ? "unlocked" : `locked ${item.lockType}`} ${game.i18n.localize(getLockState(item.lockType === "none" ? null : item.lockType).label)}`;
         const searchCorpus = [
             item.name,
             item.moduleTitle,
@@ -533,39 +543,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         // --- Lock control cell ---
         const lockCell = document.createElement("td");
         lockCell.classList.add("nsl-col-lock");
-        const lockBtn = document.createElement("a");
-        lockBtn.classList.add("nsl-lock-control", `nsl-${item.lockType}`);
-        lockBtn.dataset.lockKey = item.lockKey;
-
-        const lockIcon = document.createElement("i");
-        if (item.lockType === "none") {
-            lockIcon.className = "fa-solid fa-lock-open";
-            lockBtn.title = game.i18n.localize("NSL.LockType.None");
-        } else if (item.lockType === "soft") {
-            lockIcon.className = "fa-solid fa-lock";
-            lockBtn.title = game.i18n.localize("NSL.LockType.Soft");
-        } else if (item.lockType === "player" || item.lockType === "gate") {
-            lockIcon.className = "fa-solid fa-user-lock";
-            lockBtn.title = game.i18n.localize("NSL.LockType.Player");
-        } else {
-            lockIcon.className = "fa-solid fa-lock";
-            lockBtn.title = game.i18n.localize("NSL.LockType.Hard");
-        }
-        lockBtn.appendChild(lockIcon);
-
-        lockBtn.addEventListener("click", async (e) => {
-            e.preventDefault();
-            if (e.altKey) {
-                await this._cycleLock(item.lockKey, item, "toggle-player");
-            } else {
-                await this._cycleLock(item.lockKey, item, "forward");
-            }
-        });
-        lockBtn.addEventListener("contextmenu", async (e) => {
-            e.preventDefault();
-            await this._cycleLock(item.lockKey, item, "backward");
-        });
-
+        const lockBtn = createLockIcon(item.lockKey, item.lockType === "none" ? null : { type: item.lockType }, true, "nsl-lock-control");
         lockCell.appendChild(lockBtn);
         row.appendChild(lockCell);
 
@@ -746,7 +724,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             for (const binding of bindings) {
                 const badge = document.createElement("span");
                 badge.classList.add("nsl-key-badge");
-                badge.textContent = _formatBinding(binding);
+                badge.textContent = formatBinding(binding);
                 badgeContainer.appendChild(badge);
             }
         } else {
@@ -757,6 +735,24 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         }
 
         wrapper.appendChild(badgeContainer);
+
+        // Player locks keep the GM's own bindings separate, so editing them in Configure Controls
+        // doesn't change the locked value. This button copies the GM's current bindings into the lock.
+        if (item.lockType === "player") {
+            const syncBtn = document.createElement("button");
+            syncBtn.type = "button";
+            syncBtn.classList.add("nsl-btn", "nsl-btn-sync-bindings");
+            syncBtn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i>`;
+            syncBtn.title = game.i18n.localize("NSL.Manager.UseMyBindings");
+            syncBtn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const [namespace, ...actionParts] = item.key.split(".");
+                const current = game.keybindings.get(namespace, actionParts.join("."));
+                await this._onValueChange(item.lockKey, current);
+                this.render();
+            });
+            wrapper.appendChild(syncBtn);
+        }
 
         if (!isLocked) wrapper.classList.add("nsl-readonly");
 
@@ -777,7 +773,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
         // For player locks, GM's personal value is independent of the locked player value
-        if (lock.type !== "player" && lock.type !== "gate") {
+        if (lock.type !== "player") {
             try {
                 if (lockKey.startsWith(KB_PREFIX)) {
                     const actionKey = lockKey.slice(KB_PREFIX.length);
@@ -860,61 +856,22 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     // -----------------------------------------------------------------------
-    //  Lock Cycling
+    //  Lock Changes (from the lock picker)
     // -----------------------------------------------------------------------
 
-    async _cycleLock(lockKey, item, direction) {
-        // Guard against rapid double-clicks
-        if (this._lockCycleInProgress) return;
-        this._lockCycleInProgress = true;
-
+    /**
+     * Apply the lock type picked for a row and re-render.
+     * @param {string} lockKey
+     * @param {string|null} type
+     */
+    async _changeLock(lockKey, type) {
+        if (this._lockChangeInProgress) return;
+        this._lockChangeInProgress = true;
         try {
-            const map = getLockMap();
-            const lock = map[lockKey] ?? null;
-
-            // Get current value based on item type
-            let value;
-            if (item.itemType === "keybinding") {
-                const [namespace, ...actionParts] = item.key.split(".");
-                value = game.keybindings.get(namespace, actionParts.join("."));
-            } else {
-                const [namespace, ...keyParts] = item.key.split(".");
-                value = game.settings.get(namespace, keyParts.join("."));
-            }
-
-            if (direction === "forward") {
-                if (!lock) {
-                    await setLock(lockKey, "soft", value);
-                } else if (lock.type === "soft") {
-                    await setLock(lockKey, "hard", value);
-                } else if (lock.type === "hard") {
-                    await setLock(lockKey, "player", value);
-                } else {
-                    await removeLock(lockKey);
-                }
-            } else if (direction === "backward") {
-                if (!lock) {
-                    await setLock(lockKey, "player", value);
-                } else if (lock.type === "player" || lock.type === "gate") {
-                    await setLock(lockKey, "hard", value);
-                } else if (lock.type === "hard") {
-                    await setLock(lockKey, "soft", value);
-                } else {
-                    await removeLock(lockKey);
-                }
-            } else if (direction === "toggle-player") {
-                if (lock?.type === "player" || lock?.type === "gate") {
-                    await removeLock(lockKey);
-                } else {
-                    await setLock(lockKey, "player", value);
-                }
-            }
-
-            refreshHardLockSet();
-            game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-            this.render();
+            const { changed } = await changeLockType(lockKey, type);
+            if (changed) this.render();
         } finally {
-            this._lockCycleInProgress = false;
+            this._lockChangeInProgress = false;
         }
     }
 }
@@ -969,36 +926,6 @@ function _looksLikeColor(value) {
     return /^#[0-9a-fA-F]{6,8}$/.test(value);
 }
 
-/**
- * Format a keybinding binding object to a human-readable string.
- * e.g. { key: "KeyA", modifiers: ["CONTROL", "SHIFT"] } → "Ctrl + Shift + A"
- */
-function _formatBinding(binding) {
-    if (!binding || !binding.key) return "—";
-    const parts = [];
-    if (binding.modifiers) {
-        for (const mod of binding.modifiers) {
-            if (mod === "CONTROL") parts.push("Ctrl");
-            else if (mod === "SHIFT") parts.push("Shift");
-            else if (mod === "ALT") parts.push("Alt");
-            else if (mod === "META") parts.push("Meta");
-            else parts.push(mod);
-        }
-    }
-    // Convert KeyboardEvent.code to a readable key name
-    let keyName = binding.key;
-    if (keyName.startsWith("Key")) keyName = keyName.slice(3);
-    else if (keyName.startsWith("Digit")) keyName = keyName.slice(5);
-    else if (keyName.startsWith("Numpad")) keyName = "Num" + keyName.slice(6);
-    else if (keyName === "Space") keyName = "Space";
-    else if (keyName === "ArrowUp") keyName = "↑";
-    else if (keyName === "ArrowDown") keyName = "↓";
-    else if (keyName === "ArrowLeft") keyName = "←";
-    else if (keyName === "ArrowRight") keyName = "→";
-
-    parts.push(keyName);
-    return parts.join(" + ");
-}
 
 function _setReadOnly(el, readOnly) {
     if (!el) return;

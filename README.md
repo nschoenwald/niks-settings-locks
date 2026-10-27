@@ -1,6 +1,6 @@
 # Nik's Settings Locks
 
-A [FoundryVTT](https://foundryvtt.com/) module that lets the GM **soft-lock** and **hard-lock** client settings and keybinding controls for all connected clients.
+A [FoundryVTT](https://foundryvtt.com/) module that lets the GM **suggest** or **lock** client settings and keybinding controls for all connected players.
 
 Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
@@ -16,58 +16,56 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
 ## Features
 
-- **Hard Lock** 🔴 — Forces the value to the GM's choice for all clients. The UI input is disabled and changes are blocked programmatically.
-- **Player Lock** 🔵 — Locks the setting or control for players only, while letting the GM keep their own personal setting. Changes made by the GM remain personal and do not overwrite the locked player value.
-- **Soft Lock** 🟡 — Applies the GM's value once. Players may override it permanently. If the GM re-enforces the soft lock, the new value is re-applied.
-- **Conflict Guard** 🛡️ — Detects conflicting lock mechanisms from other modules (such as Carolingian UI's generic settings lock), automatically suppresses duplicate icons, and provides a one-click resolution banner for the GM.
+- **Suggested value** 📌 — Players get the GM's value once and can change it afterwards. The GM can re-send suggested values at any time.
+- **Locked for players** 🔵 — Players are kept on the locked value, while the GM keeps their own personal setting.
+- **Locked for everyone** 🔴 — Everyone, including the GM, is kept on the locked value. The UI input is disabled and changes are blocked programmatically.
+- **Lock Picker** — Click any lock icon to choose an option from a menu that explains each one. Works with the keyboard too (Tab to the icon, then Enter or Space).
+- **Conflict Guard** 🛡️ — Detects when Carolingian UI's generic settings lock is turned on and shows GMs a banner with a one-click button to turn it off. While the banner is shown, Carolingian's duplicate lock icons are hidden for the GM (players still see them, since Carolingian keeps enforcing its locks until it's turned off).
 - **Settings Support** — Lock any client/user scoped setting from any module, system, or core — including settings managed through sub-menus (e.g. core interface settings, AV configuration).
 - **Controls Support** — Lock keybinding (control) configurations, ensuring consistent hotkeys across all clients.
-- **Inline Lock Icons** — Lock toggle icons appear next to every lockable item in both the Settings Configuration and Configure Controls windows.
+- **Inline Lock Icons** — Lock icons appear next to every lockable item in both the Configure Settings and Configure Controls windows.
 - **Lock Manager** — A dedicated management window with a filterable table of all lockable settings and controls, type-appropriate value editors, keybinding display, type filter buttons (All / Settings / Controls), and quick toggles to filter for locked or hidden settings.
-- **Interactive Update Prompt** — When a GM batch-saves changes to settings that are currently soft-locked, an interactive prompt allows them to quickly select which soft locks to update globally for players.
-- **Re-enforce Soft Locks** — Re-publish all soft locks with a new revision so players receive the GM's values on their next login.
-- **Export / Import** — Save and restore lock configurations as JSON files. Includes setting, keybinding, and player locks.
+- **Update Prompt** — When the GM changes items that have a suggested value or are locked for everyone, a prompt shows the old and new values and lets them choose which ones to update for players. For items locked for everyone, declined changes are undone.
+- **Re-send Suggested Values** — Send all suggested values to players again, even to players who changed them. Connected players get them right away, others on their next login.
+- **Export / Import** — Save and restore lock configurations as JSON files, including setting and keybinding locks.
 - **Clear All Locks** — Remove all locks at once from both the Settings Config and the Lock Manager.
 - **Live Enforcement** — When the GM changes a lock, all connected clients are updated immediately via socket.
 
 ## Lock Behavior
 
-| | Soft Lock | Player Lock | Hard Lock |
+| | Suggested value | Locked for players | Locked for everyone |
 |---|---|---|---|
-| Applied on load | Once per revision | Every load (players only) | Every load (all clients) |
-| Player can override | ✓ Permanently | ✗ Blocked | ✗ Blocked |
-| UI indicator | 🟡 Yellow lock | 🔵 Blue user-lock | 🔴 Red lock |
-| Input disabled | No | Yes (players only) | Yes (all clients) |
-| GM personal value | Shared (prompts GM on change) | ✓ Independent (GM customizes freely) | Follows GM lock value |
-| GM re-sets lock | Re-applies (new revision) | Controlled in Lock Manager | Always enforced |
+| Icon | 📌 Yellow pin | 🔵 Blue user-lock | 🔴 Red lock |
+| Applied to players | Once (until re-sent) | Every load | Every load |
+| Player can change it | ✓ | ✗ Blocked | ✗ Blocked |
+| Applied to the GM | ✗ | ✗ (GM keeps their own value) | ✓ |
+| Input disabled | No | Yes (players only) | Yes (everyone) |
+| Changing the locked value | GM changes their own setting, then confirms in the prompt | Lock Manager: edit the value (settings) or copy your bindings (controls) | GM changes the setting, then confirms in the prompt |
 
-### GM Enforcement
+Locking an unlocked item uses your current value. Changing an existing lock to another option keeps its locked value; switching to **Locked for everyone** applies that value to you as well.
 
-Locks are applied on page load. For **Hard Locks**, values are enforced across all clients. For **Player Locks**, values are enforced on players while the GM retains their personal setting. At runtime, GMs are exempt from the enforcement wrapper — they can freely change settings or controls, remove locks, and save without being blocked.
+### Who can manage locks
+
+By default only Game Masters manage locks. The **Minimum Role for Lock Management** setting can extend this to Assistant GMs or Trusted Players. Trusted Players can't save world settings themselves, so their changes are saved through a logged-in GM — a GM must be online for them to change locks.
 
 ## Usage
 
-### Inline Controls (Settings Config)
-1. Open **Settings → Configure Settings**
-2. Lock icons appear to the left of each client/user setting name
-3. **Click** to cycle: Unlocked → Soft Lock → Hard Lock → Player Lock → Unlocked
-4. **Right-click** to cycle backward: Unlocked → Player Lock → Hard Lock → Soft Lock → Unlocked
-5. **Alt+Click** to toggle directly to Player Lock
-6. Changes are saved immediately and broadcast to all clients
+### Configure Settings and Configure Controls
+1. Open **Settings → Configure Settings** or **Settings → Configure Controls**
+2. A lock icon appears to the left of each client/user setting and each control
+3. **Click** the icon (or Tab to it and press Enter) to open the lock picker, then choose an option
+4. Changes are saved immediately and sent to all connected clients
 
-### Inline Controls (Configure Controls)
-1. Open **Settings → Configure Controls**
-2. Lock icons appear next to each keybinding action
-3. Same click / right-click / Alt+click cycling as settings
+Players see the icon only on items that have a suggested value or are locked; hovering it explains what the GM set.
 
 ### Lock Manager
 1. Open **Settings → Module Settings → Nik's Settings Locks → Open Lock Manager**
 2. Browse, filter, and manage locks for all settings and controls in one place
 3. Settings show type-appropriate input controls; keybindings show key combo badges
-4. Use the toolbar buttons for export, import, re-enforce, and bulk clear
+4. Use the toolbar buttons to export, import, re-send suggested values, or clear all locks
 
-### Re-enforcing Soft Locks
-Soft locks are applied only once per revision. If players have overridden a soft-locked value, clicking **Re-enforce Soft Locks** bumps the revision of all soft locks. Players will receive the GM's values again on their next login.
+### Re-sending Suggested Values
+A suggested value is applied to each player only once, so players can change it afterwards. Clicking **Re-send Suggested Values** sends all suggested values again: connected players get them right away, others on their next login.
 
 ## Dependencies
 

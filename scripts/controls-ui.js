@@ -5,12 +5,8 @@
  * application for GM users, and shows lock indicators for players.
  */
 
-import {
-    MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
-    getLockMap, setLock, removeLock,
-    canManageLocks
-} from "./lock-store.js";
-import { refreshHardLockSet } from "./enforcer.js";
+import { KB_PREFIX, getLockMap, canManageLocks } from "./lock-store.js";
+import { createLockIcon, updateLockIcon, bindLockPicker, changeLockType } from "./lock-picker.js";
 
 // ---------------------------------------------------------------------------
 //  Public API
@@ -54,27 +50,33 @@ function _onRenderControls(app, html) {
         const actionKey = group.dataset.actionId;
         if (!actionKey || !lockableActions.has(actionKey)) continue;
         const lockKey = `${KB_PREFIX}${actionKey}`;
-        _processFormGroup(group, lockKey, actionKey, map, isManager);
+        _processFormGroup(group, lockKey, map, isManager);
     }
+
+    // Lock picker for every lock icon in this window (bound once per window)
+    if (isManager) bindLockPicker(html, (icon, type) => _onPickLock(app, icon, type));
 }
 
 /**
  * Process a single form-group: inject lock icon and apply disabling.
  */
-function _processFormGroup(group, lockKey, actionKey, map, isManager) {
+function _processFormGroup(group, lockKey, map, isManager) {
     const lock = map[lockKey] ?? null;
-    _injectLockIcon(group, lockKey, actionKey, lock, isManager);
+    _injectLockIcon(group, lockKey, lock, isManager);
 
     // Disable inputs:
     // - "hard": disabled for ALL users
     // - "player": disabled for non-managers only
+    _applyGroupLockState(group, lock, isManager);
+}
+
+/**
+ * Disable or re-enable a keybinding form-group according to its lock.
+ */
+function _applyGroupLockState(group, lock, isManager) {
     const isHard = lock?.type === "hard";
-    const isPlayerLocked = !isManager && (lock?.type === "player" || lock?.type === "gate");
-    if (isHard || isPlayerLocked) {
-        group.classList.add("nsl-hard-locked");
-    } else {
-        group.classList.remove("nsl-hard-locked");
-    }
+    const isPlayerLocked = !isManager && lock?.type === "player";
+    group.classList.toggle("nsl-hard-locked", isHard || isPlayerLocked);
 }
 
 // ---------------------------------------------------------------------------
@@ -84,32 +86,10 @@ function _processFormGroup(group, lockKey, actionKey, map, isManager) {
 /**
  * Inject a lock icon into a keybinding's form-group.
  */
-function _injectLockIcon(group, lockKey, actionKey, lock, isManager) {
+function _injectLockIcon(group, lockKey, lock, isManager) {
     if (group.querySelector(".nsl-lock-icon")) return;
 
-    const icon = document.createElement("a");
-    icon.classList.add("nsl-lock-icon");
-    icon.dataset.lockKey = lockKey;
-
-    _updateLockIcon(icon, lock, isManager);
-
-    if (isManager) {
-        icon.addEventListener("click", async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (event.altKey) {
-                await _togglePlayerLock(icon, lockKey, actionKey, group);
-            } else {
-                await _cycleLockForward(icon, lockKey, actionKey, group);
-            }
-        });
-
-        icon.addEventListener("contextmenu", async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await _cycleLockBackward(icon, lockKey, actionKey, group);
-        });
-    }
+    const icon = createLockIcon(lockKey, lock, isManager);
 
     // V14 ControlsConfig uses <span class="label"> not <label>
     const label = group.querySelector("label") || group.querySelector("span.label");
@@ -121,126 +101,18 @@ function _injectLockIcon(group, lockKey, actionKey, lock, isManager) {
 }
 
 /**
- * Update the lock icon appearance based on the lock state.
+ * Apply the lock type the GM picked for a keybinding.
  */
-function _updateLockIcon(icon, lock, isManager) {
-    icon.classList.remove("nsl-unlocked", "nsl-soft", "nsl-hard", "nsl-player");
-    icon.innerHTML = "";
+async function _onPickLock(app, icon, type) {
+    const lockKey = icon.dataset.lockKey;
+    const { changed, localValueChanged } = await changeLockType(lockKey, type);
+    if (!changed) return;
 
-    const i = document.createElement("i");
+    // The GM's own bindings changed (switched to "Locked for everyone"): show them
+    if (localValueChanged) return app.render();
 
-    if (!lock) {
-        icon.classList.add("nsl-unlocked");
-        i.className = "fa-solid fa-lock-open";
-        icon.title = isManager
-            ? game.i18n.localize("NSL.Tooltip.Unlocked")
-            : "";
-        if (!isManager) icon.style.display = "none";
-    } else if (lock.type === "soft") {
-        icon.classList.add("nsl-soft");
-        i.className = "fa-solid fa-lock";
-        icon.title = isManager
-            ? game.i18n.localize("NSL.Tooltip.Soft")
-            : game.i18n.localize("NSL.Tooltip.SoftLockedByGM");
-        icon.style.display = "";
-    } else if (lock.type === "player" || lock.type === "gate") {
-        icon.classList.add("nsl-player");
-        i.className = "fa-solid fa-user-lock";
-        icon.title = isManager
-            ? game.i18n.localize("NSL.Tooltip.Player")
-            : game.i18n.localize("NSL.Tooltip.LockedByGM");
-        icon.style.display = "";
-    } else if (lock.type === "hard") {
-        icon.classList.add("nsl-hard");
-        i.className = "fa-solid fa-lock";
-        icon.title = isManager
-            ? game.i18n.localize("NSL.Tooltip.Hard")
-            : game.i18n.localize("NSL.Tooltip.LockedByGM");
-        icon.style.display = "";
-    }
-
-    icon.appendChild(i);
-}
-
-// ---------------------------------------------------------------------------
-//  Lock Cycling
-// ---------------------------------------------------------------------------
-
-function _getKeybindingValue(actionKey) {
-    const [namespace, ...actionParts] = actionKey.split(".");
-    const action = actionParts.join(".");
-    try {
-        return game.keybindings.get(namespace, action);
-    } catch {
-        return [];
-    }
-}
-
-async function _cycleLockForward(icon, lockKey, actionKey, group) {
     const lock = getLockMap()[lockKey] ?? null;
-    const value = _getKeybindingValue(actionKey);
-
-    if (!lock) {
-        await setLock(lockKey, "soft", value);
-        _updateLockIcon(icon, { type: "soft" }, true);
-    } else if (lock.type === "soft") {
-        await setLock(lockKey, "hard", value);
-        _updateLockIcon(icon, { type: "hard" }, true);
-        group.classList.add("nsl-hard-locked");
-    } else if (lock.type === "hard") {
-        await setLock(lockKey, "player", value);
-        _updateLockIcon(icon, { type: "player" }, true);
-        group.classList.remove("nsl-hard-locked");
-    } else {
-        await removeLock(lockKey);
-        _updateLockIcon(icon, null, true);
-        group.classList.remove("nsl-hard-locked");
-    }
-
-    refreshHardLockSet();
-    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
+    updateLockIcon(icon, lock, true);
+    const group = icon.closest(".form-group");
+    if (group) _applyGroupLockState(group, lock, true);
 }
-
-async function _cycleLockBackward(icon, lockKey, actionKey, group) {
-    const lock = getLockMap()[lockKey] ?? null;
-    const value = _getKeybindingValue(actionKey);
-
-    if (!lock) {
-        await setLock(lockKey, "player", value);
-        _updateLockIcon(icon, { type: "player" }, true);
-    } else if (lock.type === "player" || lock.type === "gate") {
-        await setLock(lockKey, "hard", value);
-        _updateLockIcon(icon, { type: "hard" }, true);
-        group.classList.add("nsl-hard-locked");
-    } else if (lock.type === "hard") {
-        await setLock(lockKey, "soft", value);
-        _updateLockIcon(icon, { type: "soft" }, true);
-        group.classList.remove("nsl-hard-locked");
-    } else {
-        await removeLock(lockKey);
-        _updateLockIcon(icon, null, true);
-        group.classList.remove("nsl-hard-locked");
-    }
-
-    refreshHardLockSet();
-    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-}
-
-async function _togglePlayerLock(icon, lockKey, actionKey, group) {
-    const lock = getLockMap()[lockKey] ?? null;
-
-    if (lock?.type === "player" || lock?.type === "gate") {
-        await removeLock(lockKey);
-        _updateLockIcon(icon, null, true);
-        group.classList.remove("nsl-hard-locked");
-    } else {
-        const value = _getKeybindingValue(actionKey);
-        await setLock(lockKey, "player", value);
-        _updateLockIcon(icon, { type: "player" }, true);
-        group.classList.remove("nsl-hard-locked");
-    }
-
-    refreshHardLockSet();
-    game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
-}
-

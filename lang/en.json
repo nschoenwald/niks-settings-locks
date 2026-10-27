@@ -1,23 +1,23 @@
 {
   "NSL": {
     "ModuleTitle": "Nik's Settings Locks",
-
     "LockType": {
       "None": "Unlocked",
-      "Soft": "Soft Lock",
-      "Hard": "Hard Lock",
-      "Player": "Player Lock"
+      "Soft": "Suggested value",
+      "Player": "Locked for players",
+      "Hard": "Locked for everyone"
     },
-
+    "LockHint": {
+      "None": "Players can change this freely.",
+      "Soft": "Players get your value once and can change it afterwards.",
+      "Player": "Players are kept on the locked value. You keep your own.",
+      "Hard": "Everyone, including you, is kept on the locked value."
+    },
     "Tooltip": {
-      "Unlocked": "Unlocked — players can freely change this.\nClick to cycle to Soft Lock. Right-click to Player Lock. Alt+click to toggle Player Lock.",
-      "Soft": "Soft Locked — the GM's value is applied once. Players may override it permanently.\nClick to cycle to Hard Lock. Right-click to unlock.",
-      "Hard": "Hard Locked — forced to the GM's value for all clients.\nClick to cycle to Player Lock. Right-click to cycle to Soft Lock.",
-      "Player": "Player Locked — forced for players only. The GM keeps their own personal setting.\nClick to unlock. Right-click to cycle to Hard Lock. Alt+click to toggle.",
-      "LockedByGM": "This is locked by the GM.",
-      "SoftLockedByGM": "This was set by the GM. You may change it if you wish."
+      "ClickToChange": "Click to change the lock.",
+      "LockedByGM": "The GM has locked this.",
+      "SoftLockedByGM": "The GM suggested this value. You can change it."
     },
-
     "Conflict": {
       "BannerTitle": "Conflict Detected: Carolingian UI",
       "BannerText": "Carolingian UI's \"Enable client settings lock for core and other modules\" is enabled alongside Nik's Settings Locks. To prevent duplicate icons and desynchronized enforcement, please disable it.",
@@ -25,12 +25,11 @@
       "ResolvedNotification": "Disabled Carolingian UI generic locks. Nik's Settings Locks is managing your settings locks.",
       "ReadyWarn": "Carolingian UI's generic settings lock is enabled. This conflicts with Nik's Settings Locks. Open the Lock Manager or Configure Settings to resolve it."
     },
-
     "Notifications": {
       "LocksAppliedOne": "Applied {count} lock.",
       "LocksAppliedMany": "Applied {count} locks.",
       "HardLockBlocked": "Cannot change \"{name}\" — it is locked by the GM.",
-      "PlayerLockBlocked": "Cannot change \"{name}\" — it is locked for players by the GM.",
+      "PlayerLockBlocked": "Cannot change \"{name}\" — the GM has locked it for players.",
       "ExportSuccess": "Locks exported successfully.",
       "ImportSuccessOne": "Imported {count} lock successfully.",
       "ImportSuccessMany": "Imported {count} locks successfully.",
@@ -38,20 +37,25 @@
       "NoLocksToExport": "No locks to export.",
       "ReloadForcing": "Some locked settings require a reload to take effect. Reloading now…",
       "LocksEnforced": "Locks have been updated by the GM.",
-      "SoftLocksReenforcedOne": "Re-enforced {count} soft lock. Players will receive the updated value on their next login.",
-      "SoftLocksReenforcedMany": "Re-enforced {count} soft locks. Players will receive the updated values on their next login.",
-      "NoSoftLocks": "No soft locks to re-enforce.",
-      "SoftLocksUpdated": "Updated {count} soft lock(s) for players."
+      "SoftLocksReenforcedOne": "Re-sent {count} suggested value. Connected players get it now, others when they next log in.",
+      "SoftLocksReenforcedMany": "Re-sent {count} suggested values. Connected players get them now, others when they next log in.",
+      "NoSoftLocks": "There are no suggested values to re-send.",
+      "SoftLocksUpdated": "Updated {count} suggested value(s) for players.",
+      "HardLocksUpdated": "Updated {count} locked value(s) for everyone.",
+      "NoActiveGM": "A GM must be logged in to save lock changes."
     },
-
     "Prompt": {
-      "SoftLockUpdateTitle": "Update Soft Locks?",
-      "SoftLockUpdateDesc": "You have changed the values of settings that are currently soft-locked. Do you want to update the soft lock so players receive the new values, or keep it as a local change for yourself only?",
-      "NewValue": "New value",
-      "UpdateLock": "Update soft lock for players",
-      "ApplySelected": "Apply Selected"
+      "SoftTitle": "Update suggested values?",
+      "SoftDesc": "You changed settings or controls that have a suggested value for players. Ticked items send your new value to players. Unticked items only change for you.",
+      "SoftCheckbox": "Suggest the new value to players",
+      "SoftApply": "Apply",
+      "SoftDecline": "Only for me",
+      "HardTitle": "Change values locked for everyone?",
+      "HardDesc": "You changed settings or controls that are locked for everyone, so they also apply to you. Ticked items update the locked value for everyone. Unticked items are changed back to the locked value.",
+      "HardCheckbox": "Update the locked value for everyone",
+      "HardApply": "Apply",
+      "HardDecline": "Undo my changes"
     },
-
     "Settings": {
       "OpenManager": "Open Lock Manager",
       "OpenManagerHint": "Opens a dedicated window for managing all settings and control locks.",
@@ -61,7 +65,6 @@
       "RoleAssistant": "Assistant Game Master",
       "RoleTrusted": "Trusted Player"
     },
-
     "Manager": {
       "Title": "Settings Lock Manager",
       "FilterPlaceholder": "Filter settings and controls…",
@@ -75,7 +78,7 @@
       "NoResults": "No lockable items match your filter.",
       "ExportButton": "Export Locks",
       "ImportButton": "Import Locks",
-      "ReenforceButton": "Re-enforce Soft Locks",
+      "ReenforceButton": "Re-send Suggested Values",
       "ClearAllButton": "Clear All Locks",
       "ClearAllConfirm": "Are you sure you want to remove all locks?",
       "ShowLockedOnly": "Show locked only",
@@ -88,13 +91,12 @@
       "OrphanedHint": "These locks reference settings or controls that are no longer registered. This usually means the module was uninstalled or the setting was removed.",
       "OrphanedColumnKey": "Key",
       "OrphanedRemove": "Remove this lock",
-      "OrphanedRemoveAll": "Remove All Orphaned"
+      "OrphanedRemoveAll": "Remove All Orphaned",
+      "UseMyBindings": "Use my current bindings as the locked player bindings"
     },
-
     "Export": {
       "Filename": "settings-locks"
     },
-
     "Import": {
       "DialogTitle": "Import Locks",
       "ConfirmMessageOne": "This will import {count} lock. Existing locks for the same items will be overwritten. Continue?",

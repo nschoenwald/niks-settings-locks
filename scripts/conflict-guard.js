@@ -6,8 +6,6 @@
  * and provides UI suppression and one-click resolution for the GM.
  */
 
-import { canManageLocks } from "./lock-store.js";
-
 export const CRLNGN_MODULE_ID = "crlngn-ui";
 export const CRLNGN_LOCK_OTHER_SETTING = "v2-lock-other-modules";
 
@@ -33,8 +31,25 @@ export function isCarolingianGenericLockEnabled() {
 }
 
 /**
+ * Whether the current user can change Carolingian UI's world-scoped setting.
+ * Lock managers below the Assistant GM role (e.g. Trusted Players) usually can't.
+ * @returns {boolean}
+ */
+export function canResolveConflict() {
+    return !!game.user?.can("SETTINGS_MODIFY");
+}
+
+/**
+ * Whether the conflict banner (and icon suppression) applies to the current user.
+ * @returns {boolean}
+ */
+export function shouldShowConflictBanner() {
+    return canResolveConflict() && isCarolingianGenericLockEnabled();
+}
+
+/**
  * Programmatically disable Carolingian UI's generic settings lock.
- * Only callable by GMs / managers.
+ * Requires permission to modify world settings (see canResolveConflict).
  * @returns {Promise<boolean>}
  */
 export async function disableCarolingianGenericLock() {
@@ -55,7 +70,7 @@ export async function disableCarolingianGenericLock() {
  * @returns {HTMLElement|null} The created banner element or null
  */
 export function renderConflictBanner(parentElement, onResolved) {
-    if (!parentElement || !canManageLocks() || !isCarolingianGenericLockEnabled()) {
+    if (!parentElement || !shouldShowConflictBanner()) {
         return null;
     }
 
@@ -97,13 +112,7 @@ export function renderConflictBanner(parentElement, onResolved) {
             if (typeof onResolved === "function") onResolved();
 
             // Prompt GM to reload so Carolingian UI wrappers are cleanly removed from memory
-            try {
-                if (typeof foundry.applications?.settings?.SettingsConfig?.reloadConfirm === "function") {
-                    foundry.applications.settings.SettingsConfig.reloadConfirm({ world: true });
-                }
-            } catch {
-                // Ignore if reloadConfirm dialog cannot be shown
-            }
+            foundry.applications.settings.SettingsConfig.reloadConfirm({ world: true });
         } else {
             fixBtn.disabled = false;
         }
@@ -117,11 +126,10 @@ export function renderConflictBanner(parentElement, onResolved) {
 }
 
 /**
- * Check for conflicts on ready and warn the GM if needed.
+ * Check for conflicts on ready and warn users who can resolve them.
  */
 export function checkConflictOnReady() {
-    if (!canManageLocks()) return;
-    if (isCarolingianGenericLockEnabled()) {
+    if (shouldShowConflictBanner()) {
         console.warn("niks-settings-locks | Carolingian UI generic settings lock is enabled. This may cause duplicate icons and desync.");
         ui.notifications.warn(game.i18n.localize("NSL.Conflict.ReadyWarn"), { permanent: false });
     }
