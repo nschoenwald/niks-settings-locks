@@ -5,7 +5,7 @@ All notable changes to Nik's Settings Locks are documented in this file.
 ## [14.3.1] — 2026-10-28
 
 ### Changed
-- **Lock picker order** — The menu now lists Unlocked, **Locked for players**, Locked for everyone, then Suggested value.
+- **Lock picker order** — The menu now lists Unlocked, Locked for everyone, Locked for players, then Suggested value.
 
 ### Fixed
 - **Lock picker scrolling** — All options in the lock picker are visible at once; you no longer have to scroll the menu.

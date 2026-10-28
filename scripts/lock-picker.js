@@ -15,8 +15,8 @@ import { refreshHardLockSet, applyLock } from "./enforcer.js";
  */
 export const LOCK_STATES = [
     { type: null, cssClass: "nsl-unlocked", icon: "fa-solid fa-lock-open", label: "NSL.LockType.None", hint: "NSL.LockHint.None" },
-    { type: "player", cssClass: "nsl-player", icon: "fa-solid fa-user-lock", label: "NSL.LockType.Player", hint: "NSL.LockHint.Player" },
     { type: "hard", cssClass: "nsl-hard", icon: "fa-solid fa-lock", label: "NSL.LockType.Hard", hint: "NSL.LockHint.Hard" },
+    { type: "player", cssClass: "nsl-player", icon: "fa-solid fa-user-lock", label: "NSL.LockType.Player", hint: "NSL.LockHint.Player" },
     { type: "soft", cssClass: "nsl-soft", icon: "fa-solid fa-thumbtack", label: "NSL.LockType.Soft", hint: "NSL.LockHint.Soft" }
 ];
 

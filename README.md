@@ -16,8 +16,8 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
 ## Features
 
-- **Locked for players** 🔵 — Players are kept on the locked value, while the GM keeps their own personal setting.
 - **Locked for everyone** 🔴 — Everyone, including the GM, is kept on the locked value. The UI input is disabled and changes are blocked programmatically.
+- **Locked for players** 🔵 — Players are kept on the locked value, while the GM keeps their own personal setting.
 - **Suggested value** 📌 — Players get the GM's value once and can change it afterwards. The GM can re-send suggested values at any time.
 - **Lock Picker** — Click any lock icon to choose an option from a menu that explains each one. Works with the keyboard too (Tab to the icon, then Enter or Space).
 - **Conflict Guard** 🛡️ — Detects when Carolingian UI's generic settings lock is turned on and shows GMs a banner with a one-click button to turn it off. While the banner is shown, Carolingian's duplicate lock icons are hidden for the GM (players still see them, since Carolingian keeps enforcing its locks until it's turned off).
