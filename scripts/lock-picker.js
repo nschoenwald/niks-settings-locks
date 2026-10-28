@@ -15,9 +15,9 @@ import { refreshHardLockSet, applyLock } from "./enforcer.js";
  */
 export const LOCK_STATES = [
     { type: null, cssClass: "nsl-unlocked", icon: "fa-solid fa-lock-open", label: "NSL.LockType.None", hint: "NSL.LockHint.None" },
-    { type: "soft", cssClass: "nsl-soft", icon: "fa-solid fa-thumbtack", label: "NSL.LockType.Soft", hint: "NSL.LockHint.Soft" },
     { type: "player", cssClass: "nsl-player", icon: "fa-solid fa-user-lock", label: "NSL.LockType.Player", hint: "NSL.LockHint.Player" },
-    { type: "hard", cssClass: "nsl-hard", icon: "fa-solid fa-lock", label: "NSL.LockType.Hard", hint: "NSL.LockHint.Hard" }
+    { type: "hard", cssClass: "nsl-hard", icon: "fa-solid fa-lock", label: "NSL.LockType.Hard", hint: "NSL.LockHint.Hard" },
+    { type: "soft", cssClass: "nsl-soft", icon: "fa-solid fa-thumbtack", label: "NSL.LockType.Soft", hint: "NSL.LockHint.Soft" }
 ];
 
 /**
@@ -191,8 +191,12 @@ let _LockPickerMenu = null;
  */
 function _getMenuClass() {
     _LockPickerMenu ??= class LockPickerMenu extends foundry.applications.ux.ContextMenu.implementation {
-        /** @override */
-        async _onRender(options = {}) {
+        /**
+         * Runs before the menu is measured and positioned, so the hints count towards its height
+         * and the menu fits without scrolling.
+         * @override
+         */
+        async _onRenderEntries(menu, options = {}) {
             for (const item of this.menuItems) {
                 const span = item.element?.querySelector("span");
                 if (!span) continue;
@@ -210,7 +214,7 @@ function _getMenuClass() {
                     item.element.setAttribute("aria-current", "true");
                 }
             }
-            return super._onRender(options);
+            return super._onRenderEntries(menu, options);
         }
     };
     return _LockPickerMenu;
