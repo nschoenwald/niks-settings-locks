@@ -2,6 +2,13 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.3.0] — 2026-10-28
+
+### Added
+- **Users who can modify settings can manage locks** — Anyone with Foundry's *Modify Configuration Settings* permission can now use Nik's Settings Locks, whatever their role. This is on by default; turn off **Allow Users Who Can Modify Settings** in the module settings to go back to role-only access.
+  - Assistant GMs have this permission by default, so they can now manage locks even if the minimum role is set to Game Master.
+  - Lock managers aren't affected by suggested values or player locks. If you give this permission to regular players, consider turning the setting off.
+
 ## [14.2.0] — 2026-10-26
 
 ### Added

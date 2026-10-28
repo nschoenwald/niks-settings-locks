@@ -13,6 +13,7 @@
 export const MODULE_ID = "niks-settings-locks";
 export const SETTING_LOCK_MAP = "lockMap";
 export const SETTING_MIN_ROLE = "minimumRole";
+export const SETTING_ALLOW_SETTINGS_MODIFY = "allowSettingsModify";
 export const SOCKET_CHANNEL = `module.${MODULE_ID}`;
 export const KB_PREFIX = "kb:";
 
@@ -33,17 +34,31 @@ const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
 
 /**
  * Check whether the current user has permission to manage locks.
- * Returns true if the user's role is >= the configured minimum role.
- * Defaults to GAMEMASTER (4) if the setting hasn't been registered yet.
+ * @returns {boolean}
  */
 export function canManageLocks() {
+    return canUserManageLocks(game.user);
+}
+
+/**
+ * Check whether a user may manage locks: their role is at least the configured minimum role,
+ * or (unless the GM turned it off) they have Foundry's "Modify Configuration Settings" permission.
+ * Falls back to GM-only if the settings haven't been registered yet.
+ * @param {User} user
+ * @returns {boolean}
+ */
+export function canUserManageLocks(user) {
+    if (!user) return false;
     let minRole = CONST.USER_ROLES.GAMEMASTER;
+    let allowSettingsModify = false;
     try {
         minRole = game.settings.get(MODULE_ID, SETTING_MIN_ROLE);
+        allowSettingsModify = game.settings.get(MODULE_ID, SETTING_ALLOW_SETTINGS_MODIFY);
     } catch {
-        // Setting not yet registered — fall back to GM-only
+        // Settings not yet registered — fall back to GM-only
     }
-    return (game.user?.role ?? 0) >= minRole;
+    if (user.role >= minRole) return true;
+    return allowSettingsModify && user.can("SETTINGS_MODIFY");
 }
 
 // ---------------------------------------------------------------------------
@@ -87,13 +102,7 @@ export async function setLockMap(map) {
  */
 export function registerLockMapQuery() {
     CONFIG.queries[QUERY_SET_LOCK_MAP] = async ({ map } = {}, { user } = {}) => {
-        let minRole = CONST.USER_ROLES.GAMEMASTER;
-        try {
-            minRole = game.settings.get(MODULE_ID, SETTING_MIN_ROLE);
-        } catch {
-            // Setting not registered — keep GM-only
-        }
-        if (!user || user.role < minRole) throw new Error("You are not allowed to manage settings locks.");
+        if (!canUserManageLocks(user)) throw new Error("You are not allowed to manage settings locks.");
         if (foundry.utils.getType(map) !== "Object") throw new Error("Invalid lock map.");
         for (const [key, entry] of Object.entries(map)) {
             if (!LOCK_TYPES.includes(entry?.type)) throw new Error(`Invalid lock entry: ${key}`);

@@ -5,7 +5,10 @@
  * wires up the enforcer and UI hooks.
  */
 
-import { MODULE_ID, SETTING_LOCK_MAP, SETTING_MIN_ROLE, canManageLocks, registerLockMapQuery } from "./lock-store.js";
+import {
+    MODULE_ID, SETTING_LOCK_MAP, SETTING_MIN_ROLE, SETTING_ALLOW_SETTINGS_MODIFY,
+    canManageLocks, registerLockMapQuery
+} from "./lock-store.js";
 import { initEnforcer, registerSocketListener, applyLocks } from "./enforcer.js";
 import { initSettingsUI } from "./settings-ui.js";
 import { initControlsUI } from "./controls-ui.js";
@@ -43,6 +46,18 @@ Hooks.once("init", () => {
             [CONST.USER_ROLES.ASSISTANT]: game.i18n.localize("NSL.Settings.RoleAssistant"),
             [CONST.USER_ROLES.TRUSTED]: game.i18n.localize("NSL.Settings.RoleTrusted")
         },
+        restricted: true,
+        requiresReload: true
+    });
+
+    // Also let users with Foundry's "Modify Configuration Settings" permission manage locks (opt-out)
+    game.settings.register(MODULE_ID, SETTING_ALLOW_SETTINGS_MODIFY, {
+        name: game.i18n.localize("NSL.Settings.AllowSettingsModifyName"),
+        hint: game.i18n.localize("NSL.Settings.AllowSettingsModifyHint"),
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
         restricted: true,
         requiresReload: true
     });

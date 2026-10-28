@@ -46,7 +46,12 @@ Locking an unlocked item uses your current value. Changing an existing lock to a
 
 ### Who can manage locks
 
-By default only Game Masters manage locks. The **Minimum Role for Lock Management** setting can extend this to Assistant GMs or Trusted Players. Trusted Players can't save world settings themselves, so their changes are saved through a logged-in GM — a GM must be online for them to change locks.
+Two settings control who can manage locks:
+
+- **Minimum Role for Lock Management** — Game Master (default), Assistant GM or Trusted Player. Trusted Players can't save world settings themselves, so their changes are saved through a logged-in GM — a GM must be online for them to change locks.
+- **Allow Users Who Can Modify Settings** (on by default) — anyone with Foundry's *Modify Configuration Settings* permission can also manage locks, whatever their role. Assistant GMs have this permission by default.
+
+Lock managers aren't affected by suggested values or player locks (only by "Locked for everyone"). If you grant *Modify Configuration Settings* to regular players, turn the second setting off so locks still apply to them.
 
 ## Usage
 

@@ -61,6 +61,8 @@
       "OpenManagerHint": "Opens a dedicated window for managing all settings and control locks.",
       "MinRoleName": "Minimum Role for Lock Management",
       "MinRoleHint": "The minimum user role required to view and manage locks. Higher roles are always included (e.g. selecting Trusted Player also grants access to Assistant GMs and Game Masters).",
+      "AllowSettingsModifyName": "Allow Users Who Can Modify Settings",
+      "AllowSettingsModifyHint": "Users with Foundry's \"Modify Configuration Settings\" permission can also manage locks, whatever their role. Lock managers aren't affected by suggested values or player locks, so turn this off if you grant that permission to regular players.",
       "RoleGM": "Game Master",
       "RoleAssistant": "Assistant Game Master",
       "RoleTrusted": "Trusted Player"
