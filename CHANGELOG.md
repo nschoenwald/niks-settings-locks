@@ -2,6 +2,15 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.3.2] — 2026-10-31
+
+### Fixed
+- **"Applied 2 locks" on every load** — Locked controls whose action also has fixed, non-editable keys (for example some core controls) no longer count as changed every time you log in, so the notice only shows when a lock really changed your settings. Clients that were affected get their key bindings tidied up once on their next load.
+- **Dropdown values edited in the Lock Manager** — Choosing a numeric option from a dropdown in the Lock Manager no longer makes the lock look changed on every load. For players this could also mean a reload on every login when the setting needs one.
+- **Editing a suggested value in the Lock Manager** — Changing a suggested value no longer changes the GM's own setting. As described, only "Locked for everyone" applies to the GM. Editing a value that is locked for everyone now also asks you to reload when that setting needs it.
+- **Cancelling an import** — Closing the file picker without choosing a file no longer leaves the import waiting.
+- **Key names** — Locked key bindings are shown the same way as in Configure Controls (for example ⌘ on macOS).
+
 ## [14.3.1] — 2026-10-28
 
 ### Changed

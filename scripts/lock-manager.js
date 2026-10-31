@@ -9,9 +9,9 @@
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
     getLockMap, setLock, removeLock, setLockMap,
-    exportLocks, importLocks, reenforceSoftLocks
+    exportLocks, importLocks, reenforceSoftLocks, getEditableBindings
 } from "./lock-store.js";
-import { refreshHardLockSet, applyLocks } from "./enforcer.js";
+import { refreshHardLockSet, applyLocks, applyLock } from "./enforcer.js";
 import { renderConflictBanner } from "./conflict-guard.js";
 import { formatBinding } from "./format.js";
 import { createLockIcon, getLockState, bindLockPicker, changeLockType } from "./lock-picker.js";
@@ -130,8 +130,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             // Get current bindings
             let currentValue;
             try {
-                const parts = actionKey.split(".");
-                currentValue = game.keybindings.get(parts[0], parts.slice(1).join("."));
+                currentValue = getEditableBindings(actionKey);
             } catch {
                 currentValue = [];
             }
@@ -625,7 +624,10 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 if (String(effectiveValue) === String(optValue)) option.selected = true;
                 input.appendChild(option);
             }
-            input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
+            // Option values are strings; store numbers as numbers so the lock matches the setting's value
+            input.addEventListener("change", () => {
+                this._onValueChange(lockKey, meta.type === "Number" ? Number(input.value) : input.value);
+            });
         }
 
         // --- Boolean checkbox ---
@@ -689,7 +691,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
                 try {
                     this._onValueChange(lockKey, JSON.parse(input.value));
                 } catch {
-                    ui.notifications.warn("Invalid JSON value.");
+                    ui.notifications.warn(game.i18n.localize("NSL.Manager.InvalidJSON"));
                 }
             });
         }
@@ -703,7 +705,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             input.addEventListener("change", () => this._onValueChange(lockKey, input.value));
         }
 
-        if (!isLocked) _setReadOnly(input, true);
+        if (!isLocked) _setReadOnly(input);
         wrapper.appendChild(input);
         return wrapper;
     }
@@ -746,8 +748,7 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
             syncBtn.title = game.i18n.localize("NSL.Manager.UseMyBindings");
             syncBtn.addEventListener("click", async (e) => {
                 e.preventDefault();
-                const [namespace, ...actionParts] = item.key.split(".");
-                const current = game.keybindings.get(namespace, actionParts.join("."));
+                const current = getEditableBindings(item.key);
                 await this._onValueChange(item.lockKey, current);
                 this.render();
             });
@@ -772,23 +773,8 @@ export class LockManagerApp extends foundry.applications.api.ApplicationV2 {
         refreshHardLockSet();
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
 
-        // For player locks, GM's personal value is independent of the locked player value
-        if (lock.type !== "player") {
-            try {
-                if (lockKey.startsWith(KB_PREFIX)) {
-                    const actionKey = lockKey.slice(KB_PREFIX.length);
-                    const [namespace, ...actionParts] = actionKey.split(".");
-                    const action = actionParts.join(".");
-                    await game.keybindings.set(namespace, action, newValue);
-                } else {
-                    const [namespace, ...keyParts] = lockKey.split(".");
-                    const key = keyParts.join(".");
-                    await game.settings.set(namespace, key, newValue);
-                }
-            } catch (err) {
-                console.warn(`${MODULE_ID} | Failed to apply updated lock locally:`, err);
-            }
-        }
+        // Only "Locked for everyone" binds the manager too; suggested values and player locks keep their own value
+        if (lock.type === "hard") await applyLock(lockKey);
     }
 
     // -----------------------------------------------------------------------
@@ -901,7 +887,6 @@ function _resolveType(type) {
         if (type instanceof foundry.data.fields.StringField) return "String";
         if (type instanceof foundry.data.fields.ObjectField) return "Object";
         if (type instanceof foundry.data.fields.ArrayField) return "Array";
-        if (type instanceof foundry.data.fields.ColorField) return "String";
     } catch {
         // DataField classes may not exist — ignore
     }
@@ -927,21 +912,16 @@ function _looksLikeColor(value) {
 }
 
 
-function _setReadOnly(el, readOnly) {
-    if (!el) return;
-    const inputs = el.querySelectorAll ? el.querySelectorAll("input, select, textarea") : [];
-    const targets = inputs.length > 0 ? inputs : [el];
-
-    for (const target of targets) {
-        if (readOnly) {
-            target.classList.add("nsl-readonly");
-            if (target.tagName === "SELECT") target.disabled = true;
-            else if (target.type === "checkbox") target.disabled = true;
-            else target.readOnly = true;
-        } else {
-            target.classList.remove("nsl-readonly");
-            target.disabled = false;
-            target.readOnly = false;
-        }
+/**
+ * Make a value editor read-only (for unlocked items).
+ * @param {HTMLElement} el  An input, select or textarea, or a wrapper containing them
+ */
+function _setReadOnly(el) {
+    const inputs = el.querySelectorAll("input, select, textarea");
+    for (const target of inputs.length > 0 ? inputs : [el]) {
+        target.classList.add("nsl-readonly");
+        // Selects, checkboxes and ranges ignore readOnly
+        if (target.tagName === "SELECT" || target.type === "checkbox" || target.type === "range") target.disabled = true;
+        else target.readOnly = true;
     }
 }

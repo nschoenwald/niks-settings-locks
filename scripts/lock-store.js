@@ -70,11 +70,16 @@ export function canUserManageLocks(user) {
  * @returns {Object<string, {type: string, value: *, rev: number}>}
  */
 export function getLockMap() {
+    let map;
     try {
-        return foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
+        map = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_LOCK_MAP) ?? {});
     } catch {
         return {};
     }
+    for (const [key, lock] of Object.entries(map)) {
+        if (key.startsWith(KB_PREFIX)) lock.value = stripUneditableBindings(key.slice(KB_PREFIX.length), lock.value);
+    }
+    return map;
 }
 
 /**
@@ -118,8 +123,17 @@ export function registerLockMapQuery() {
  * @returns {{type: string, value: *, rev: number}|null}
  */
 export function getLock(settingKey) {
-    const map = getLockMap();
-    return map[settingKey] ?? null;
+    let lock;
+    try {
+        lock = game.settings.get(MODULE_ID, SETTING_LOCK_MAP)?.[settingKey];
+    } catch {
+        return null;
+    }
+    if (!lock) return null;
+    // Only this entry is cloned: the set() wrappers call this for every setting change
+    lock = foundry.utils.deepClone(lock);
+    if (settingKey.startsWith(KB_PREFIX)) lock.value = stripUneditableBindings(settingKey.slice(KB_PREFIX.length), lock.value);
+    return lock;
 }
 
 /**
@@ -148,6 +162,42 @@ export async function removeLock(settingKey) {
     await setLockMap(map);
     // Clean up the soft-lock revision tracking for this key
     clearSoftLockRev(settingKey);
+}
+
+// ---------------------------------------------------------------------------
+//  Keybinding Values
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the editable part of a keybinding action's current bindings, which is what a lock holds.
+ * game.keybindings.get() returns the action's uneditable bindings followed by its editable ones,
+ * while game.keybindings.set() stores whatever it is given as the editable bindings.
+ * @param {string} actionKey  "namespace.action"
+ * @returns {object[]}
+ */
+export function getEditableBindings(actionKey) {
+    const [namespace, ...actionParts] = actionKey.split(".");
+    const bindings = game.keybindings.get(namespace, actionParts.join("."));
+    const uneditable = game.keybindings.actions.get(actionKey)?.uneditable ?? [];
+    return bindings.slice(uneditable.length);
+}
+
+/**
+ * Remove an action's uneditable bindings from the front of a locked bindings list.
+ * Locks made before 14.3.2 included them, so the locked value never matched the client's value: it was applied
+ * again on every load and each time stored another copy of the uneditable bindings. Repeated copies are removed too.
+ * Clients that stored such copies get the clean value once on their next load.
+ * @param {string} actionKey  "namespace.action"
+ * @param {object[]} bindings
+ * @returns {object[]}
+ */
+export function stripUneditableBindings(actionKey, bindings) {
+    const uneditable = game.keybindings?.actions?.get(actionKey)?.uneditable ?? [];
+    if (!uneditable.length || !Array.isArray(bindings)) return bindings;
+    const sameBinding = (a, b) => a?.key === b?.key && foundry.utils.equals(a?.modifiers ?? [], b?.modifiers ?? []);
+    let start = 0;
+    while (uneditable.every((binding, i) => sameBinding(binding, bindings[start + i]))) start += uneditable.length;
+    return start ? bindings.slice(start) : bindings;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +261,7 @@ export function clearSoftLockRev(settingKey) {
 export async function reenforceSoftLocks() {
     const map = getLockMap();
     let count = 0;
-    for (const [key, lock] of Object.entries(map)) {
+    for (const lock of Object.values(map)) {
         if (lock.type === "soft") {
             lock.rev = (lock.rev ?? 0) + 1;
             count++;
@@ -245,13 +295,8 @@ export function exportLocks() {
         locks: map
     };
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${game.i18n.localize("NSL.Export.Filename")}-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    foundry.utils.saveDataToFile(JSON.stringify(payload, null, 2), "application/json",
+        `${game.i18n.localize("NSL.Export.Filename")}-${Date.now()}.json`);
 
     ui.notifications.info(game.i18n.localize("NSL.Notifications.ExportSuccess"));
 }
@@ -266,6 +311,8 @@ export async function importLocks() {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = ".json";
+        // Closing the file picker without choosing a file fires "cancel" instead of "change"
+        input.addEventListener("cancel", () => resolve(0));
         input.addEventListener("change", async (event) => {
             const file = event.target.files?.[0];
             if (!file) return resolve(0);
@@ -275,7 +322,7 @@ export async function importLocks() {
                 const data = JSON.parse(text);
 
                 // Validate format
-                if (data?.format !== MODULE_ID || typeof data?.locks !== "object") {
+                if (data?.format !== MODULE_ID || foundry.utils.getType(data.locks) !== "Object") {
                     ui.notifications.error(game.i18n.localize("NSL.Import.InvalidFormat"));
                     return resolve(0);
                 }

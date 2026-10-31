@@ -34,12 +34,6 @@ function _onRenderControls(app, html) {
     const map = getLockMap();
     const isManager = canManageLocks();
 
-    // Build a set of all lockable keybinding action keys
-    const lockableActions = new Set();
-    for (const [actionKey] of game.keybindings.actions.entries()) {
-        lockableActions.add(actionKey);
-    }
-
     // V14 DOM: <div class="form-group" data-action-id="core.characterSheet">
     //            <span class="label">Toggle Character Sheet</span>
     //            <ul class="form-fields flexcol"> ... </ul>
@@ -48,7 +42,7 @@ function _onRenderControls(app, html) {
 
     for (const group of formGroups) {
         const actionKey = group.dataset.actionId;
-        if (!actionKey || !lockableActions.has(actionKey)) continue;
+        if (!actionKey || !game.keybindings.actions.has(actionKey)) continue;
         const lockKey = `${KB_PREFIX}${actionKey}`;
         _processFormGroup(group, lockKey, map, isManager);
     }

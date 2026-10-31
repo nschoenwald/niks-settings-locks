@@ -94,7 +94,8 @@
       "OrphanedColumnKey": "Key",
       "OrphanedRemove": "Remove this lock",
       "OrphanedRemoveAll": "Remove All Orphaned",
-      "UseMyBindings": "Use my current bindings as the locked player bindings"
+      "UseMyBindings": "Use my current bindings as the locked player bindings",
+      "InvalidJSON": "Invalid JSON value."
     },
     "Export": {
       "Filename": "settings-locks"

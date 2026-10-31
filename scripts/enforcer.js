@@ -11,7 +11,7 @@
 import {
     MODULE_ID, SOCKET_CHANNEL, KB_PREFIX,
     getLockMap, getLock, shouldApplySoftLock, markSoftLockApplied,
-    canManageLocks, LOCKS_CHANGED_HOOK
+    canManageLocks, getEditableBindings, LOCKS_CHANGED_HOOK
 } from "./lock-store.js";
 import { promptLockUpdates } from "./lock-update-prompt.js";
 
@@ -206,7 +206,7 @@ async function _applySettingLock(settingKey, lock) {
 
         try {
             const current = game.settings.get(namespace, key);
-            if (!_valuesEqual(current, value)) {
+            if (!_settingValuesEqual(settingKey, current, value)) {
                 _bypassEnforcement = true;
                 try {
                     await game.settings.set(namespace, key, value);
@@ -227,7 +227,7 @@ async function _applySettingLock(settingKey, lock) {
         if (shouldApplySoftLock(settingKey, rev)) {
             try {
                 const current = game.settings.get(namespace, key);
-                if (!_valuesEqual(current, value)) {
+                if (!_settingValuesEqual(settingKey, current, value)) {
                     _bypassEnforcement = true;
                     try {
                         await game.settings.set(namespace, key, value);
@@ -273,7 +273,7 @@ async function _applyKeybindingLock(lockKey, lock) {
         }
 
         try {
-            const current = game.keybindings.get(namespace, action);
+            const current = getEditableBindings(actionKey);
             if (!_valuesEqual(current, value)) {
                 _bypassEnforcement = true;
                 try {
@@ -294,7 +294,7 @@ async function _applyKeybindingLock(lockKey, lock) {
 
         if (shouldApplySoftLock(lockKey, rev)) {
             try {
-                const current = game.keybindings.get(namespace, action);
+                const current = getEditableBindings(actionKey);
                 if (!_valuesEqual(current, value)) {
                     _bypassEnforcement = true;
                     try {
@@ -331,7 +331,7 @@ function _wrapSettingsSet() {
         if (canManageLocks()) {
             const result = await wrapped(namespace, key, value, ...rest);
             const lock = getLock(settingKey);
-            if (lock && !_valuesEqual(value, lock.value)) {
+            if (lock && !_settingValuesEqual(settingKey, value, lock.value)) {
                 // Player locks: the GM's value is personal, nothing to do
                 if (lock.type === "hard" || lock.type === "soft") _queueLockUpdate(lock.type, settingKey, value);
             }
@@ -348,7 +348,7 @@ function _wrapSettingsSet() {
 
             const lock = getLock(settingKey);
 
-            if (lock && _valuesEqual(value, lock.value)) {
+            if (lock && _settingValuesEqual(settingKey, value, lock.value)) {
                 return wrapped(namespace, key, value, ...rest);
             }
 
@@ -460,19 +460,39 @@ function _rerenderOpenApp(className) {
 
 /**
  * Deep equality check for setting/keybinding values.
- * Uses foundry.utils.objectsEqual when available (V14+), falls back to
- * JSON.stringify comparison.
+ * Locked values are stored as JSON, while game.settings.get() can return class instances
+ * (DataModels, Sets…), so both sides are compared in their JSON form.
  */
 function _valuesEqual(a, b) {
     if (a === b) return true;
     if (a == null || b == null) return false;
     try {
-        // Prefer Foundry's built-in deep comparison (order-independent for objects)
-        if (typeof foundry?.utils?.objectsEqual === "function") {
-            return foundry.utils.objectsEqual(a, b);
-        }
-        return JSON.stringify(a) === JSON.stringify(b);
+        return foundry.utils.equals(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
     } catch {
         return false;
+    }
+}
+
+/**
+ * Compare two values of a setting as the setting would store them: both are read back through the
+ * setting's type, as game.settings.get() does. A locked value saved as "1" for a Number setting
+ * therefore equals the 1 that game.settings.get() returns.
+ * @param {string} settingKey
+ */
+function _settingValuesEqual(settingKey, a, b) {
+    return _valuesEqual(_asSettingValue(settingKey, a), _asSettingValue(settingKey, b));
+}
+
+/**
+ * The value game.settings.get() would return after the setting was set to `value`.
+ * @param {string} settingKey
+ * @param {*} value
+ */
+function _asSettingValue(settingKey, value) {
+    if (value === undefined) return value;
+    try {
+        return new foundry.documents.Setting({ key: settingKey, value: JSON.stringify(value) }).value;
+    } catch {
+        return value;
     }
 }

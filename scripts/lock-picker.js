@@ -6,7 +6,7 @@
  * and the Lock Manager.
  */
 
-import { KB_PREFIX, SOCKET_CHANNEL, getLock, setLock, removeLock } from "./lock-store.js";
+import { KB_PREFIX, SOCKET_CHANNEL, getLock, setLock, removeLock, getEditableBindings } from "./lock-store.js";
 import { refreshHardLockSet, applyLock } from "./enforcer.js";
 
 /**
@@ -109,9 +109,8 @@ export function updateLockIcon(icon, lock, isManager) {
  */
 export function getCurrentValue(lockKey) {
     if (lockKey.startsWith(KB_PREFIX)) {
-        const [namespace, ...actionParts] = lockKey.slice(KB_PREFIX.length).split(".");
         try {
-            return game.keybindings.get(namespace, actionParts.join("."));
+            return getEditableBindings(lockKey.slice(KB_PREFIX.length));
         } catch {
             return [];
         }

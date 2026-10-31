@@ -7,7 +7,7 @@
  *   because a value locked for everyone also applies to the GM.
  */
 
-import { KB_PREFIX, getLock, setLock, SOCKET_CHANNEL } from "./lock-store.js";
+import { KB_PREFIX, getLock, getLockMap, setLockMap, SOCKET_CHANNEL } from "./lock-store.js";
 import { formatValue } from "./format.js";
 
 /**
@@ -64,12 +64,14 @@ export async function promptLockUpdates(type, updates, { onDecline } = {}) {
         rejectClose: false
     }) ?? [];
 
-    let applied = 0;
-    for (const key of selected) {
-        await setLock(key, type, updates.get(key));
-        applied++;
-    }
+    const applied = selected.length;
     if (applied > 0) {
+        // One write for all items, so a whole form save updates the lock map once
+        const map = getLockMap();
+        for (const key of selected) {
+            map[key] = { type, value: updates.get(key), rev: (map[key]?.rev ?? 0) + 1 };
+        }
+        await setLockMap(map);
         game.socket.emit(SOCKET_CHANNEL, { action: "apply-locks" });
         const notifKey = type === "hard" ? "NSL.Notifications.HardLocksUpdated" : "NSL.Notifications.SoftLocksUpdated";
         ui.notifications.info(game.i18n.format(notifKey, { count: applied }));
