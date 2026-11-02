@@ -2,6 +2,15 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.4.1] — 2026-11-02
+
+### Changed
+- **Reloads on login are automatic again** — When locks applied while loading the world need a reload, everyone is reloaded automatically, GMs and other lock managers included, with no option to cancel or postpone. Lock changes made while you're already playing still ask lock managers first. If the same locks would need a reload again right after reloading, the module stops instead of reloading over and over.
+
+### Fixed
+- **Lock changes reach everyone right away** — Changing a lock now updates every connected client immediately, as described. Before, nobody else saw the change until they reloaded: players kept their old values, and the GM didn't see locks changed by a player or Assistant GM with the *Modify Configuration Settings* permission (or by another GM). After updating the module, restart the world once so Foundry picks up the change.
+- **Reload prompt and lock prompt at the same time** — When you save a locked setting that needs a reload, the question whether to update the lock now comes first, and Foundry's reload prompt follows once you've answered. Before, both opened together, and reloading straight away could lose the lock change.
+
 ## [14.4.0] — 2026-11-02
 ### Added
 - The module is now available in German, French, Spanish, Italian, Brazilian Portuguese, Japanese, Polish and Czech.

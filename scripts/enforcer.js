@@ -18,12 +18,21 @@ import { promptLockUpdates } from "./lock-update-prompt.js";
 /** Track which keys (settings + keybindings) are currently hard-locked. */
 const _hardLockedKeys = new Set();
 
+/** sessionStorage key holding the lock keys that forced the last reload on load (see _isReloadLoop). */
+const RELOAD_GUARD_KEY = `${MODULE_ID}.loadReloadKeys`;
+
 /** Flag to bypass our own set() wrappers when we apply locks internally. */
 let _bypassEnforcement = false;
 
 /** Batching for the GM's changes to locked items, per lock type, so one prompt covers a whole form save. */
 const _pendingLockUpdates = { soft: new Map(), hard: new Map() };
 const _lockUpdateTimeouts = { soft: null, hard: null };
+
+/** Lock update prompts that are open; a reload prompt waits for them (see _wrapReloadConfirm). */
+const _openLockPrompts = new Set();
+
+/** The reload prompt currently shown, so a second request joins it instead of stacking another. */
+let _reloadConfirm = null;
 
 function _queueLockUpdate(type, key, value) {
     _pendingLockUpdates[type].set(key, value);
@@ -36,8 +45,21 @@ function _queueLockUpdate(type, key, value) {
         _lockUpdateTimeouts[type] = null;
         // Declined changes to values locked for everyone are undone: the lock binds the GM too
         const onDecline = type === "hard" ? _restoreLockedValues : undefined;
-        promptLockUpdates(type, updates, { onDecline });
+        const prompt = promptLockUpdates(type, updates, { onDecline })
+            .catch(err => console.error(`${MODULE_ID} | Failed to update locks:`, err))
+            .finally(() => _openLockPrompts.delete(prompt));
+        _openLockPrompts.add(prompt);
     }, 100);
+}
+
+/**
+ * Resolve once no lock update prompt is queued or open.
+ */
+async function _lockPromptsSettled() {
+    while (_lockUpdateTimeouts.soft !== null || _lockUpdateTimeouts.hard !== null || _openLockPrompts.size) {
+        if (_openLockPrompts.size) await Promise.allSettled([..._openLockPrompts]);
+        else await new Promise(resolve => setTimeout(resolve, 50));
+    }
 }
 
 /**
@@ -59,6 +81,7 @@ async function _restoreLockedValues(keys) {
 export function initEnforcer() {
     _wrapSettingsSet();
     _wrapKeybindingsSet();
+    _wrapReloadConfirm();
 }
 
 /**
@@ -72,9 +95,11 @@ export function registerSocketListener() {
 /**
  * Apply all locks from the world lock map to this client.
  * Called on "ready" and when the GM broadcasts a lock change.
+ * @param {object} [options]
+ * @param {boolean} [options.onLoad=false]  Applying on world load: a needed reload happens right away for everyone
  * @returns {Promise<Set<string>>} The lock keys whose values were changed on this client
  */
-export async function applyLocks() {
+export async function applyLocks({ onLoad = false } = {}) {
     const map = getLockMap();
     const entries = Object.entries(map);
     const changedKeys = new Set();
@@ -82,7 +107,10 @@ export async function applyLocks() {
     // Clear the hard-lock set and rebuild it
     _hardLockedKeys.clear();
 
-    if (!entries.length) return changedKeys;
+    if (!entries.length) {
+        if (onLoad) _clearReloadLoopGuard();
+        return changedKeys;
+    }
 
     let needsReload = false;
 
@@ -99,7 +127,10 @@ export async function applyLocks() {
         ui.notifications?.info(game.i18n.format(localeKey, { count: applied }));
     }
 
-    if (needsReload) _handleReload();
+    if (onLoad && !needsReload) _clearReloadLoopGuard();
+    if (needsReload && onLoad && _isReloadLoop(changedKeys)) {
+        console.error(`${MODULE_ID} | The same locks needed a reload again after reloading; not reloading to avoid a loop.`, [...changedKeys]);
+    } else if (needsReload) _handleReload({ force: onLoad });
     return changedKeys;
 }
 
@@ -168,11 +199,45 @@ async function _applyLockEntry(lockKey, lock) {
 }
 
 /**
- * Handle a lock that changed a setting which requires a reload.
- * Players are reloaded automatically; managers are asked first so they never lose work.
+ * Whether the locks applied on this load are the same ones that forced the previous reload in this tab,
+ * i.e. their values didn't stick and reloading again would loop. Remembers this load's keys otherwise.
+ * @param {Set<string>} changedKeys
+ * @returns {boolean}
  */
-function _handleReload() {
-    if (canManageLocks()) {
+function _isReloadLoop(changedKeys) {
+    const keys = JSON.stringify([...changedKeys].sort());
+    try {
+        if (sessionStorage.getItem(RELOAD_GUARD_KEY) === keys) {
+            sessionStorage.removeItem(RELOAD_GUARD_KEY);
+            return true;
+        }
+        sessionStorage.setItem(RELOAD_GUARD_KEY, keys);
+    } catch {
+        // Storage unavailable: reload anyway
+    }
+    return false;
+}
+
+/**
+ * Forget the keys of the last forced reload (a load that needed none ends any loop).
+ */
+function _clearReloadLoopGuard() {
+    try {
+        sessionStorage.removeItem(RELOAD_GUARD_KEY);
+    } catch {
+        // Storage unavailable
+    }
+}
+
+/**
+ * Handle a lock that changed a setting which requires a reload.
+ * Players are reloaded automatically; managers are asked first so they never lose work,
+ * except on world load (`force`), where there is no work to lose and everyone is reloaded.
+ * @param {object} [options]
+ * @param {boolean} [options.force=false]  Reload without asking, also for managers
+ */
+function _handleReload({ force = false } = {}) {
+    if (canManageLocks() && !force) {
         foundry.applications.settings.SettingsConfig.reloadConfirm({ world: false });
         return;
     }
@@ -407,6 +472,26 @@ function _wrapKeybindingsSet() {
         }
 
         return wrapped(namespace, action, bindings, ...rest);
+    }, "WRAPPER");
+}
+
+/**
+ * Wrap SettingsConfig.reloadConfirm so Foundry's reload prompt waits for the lock update prompt.
+ * Saving Configure Settings sets the values (which queues the lock prompt) and then asks to reload right away,
+ * so both dialogs opened together, and reloading before answering the lock prompt lost the lock change.
+ * Declining a "Locked for everyone" change can ask to reload again (_handleReload); that request joins the open prompt.
+ */
+function _wrapReloadConfirm() {
+    libWrapper.register(MODULE_ID, "foundry.applications.settings.SettingsConfig.reloadConfirm", async function (wrapped, options = {}, ...rest) {
+        await _lockPromptsSettled();
+        if (_reloadConfirm && (_reloadConfirm.world || !options.world)) return _reloadConfirm.promise;
+        const entry = { promise: wrapped(options, ...rest), world: !!options.world };
+        _reloadConfirm = entry;
+        try {
+            return await entry.promise;
+        } finally {
+            if (_reloadConfirm === entry) _reloadConfirm = null;
+        }
     }, "WRAPPER");
 }
 

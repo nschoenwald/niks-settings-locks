@@ -29,7 +29,7 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 - **Re-send Suggested Values** — Send all suggested values to players again, even to players who changed them. Connected players get them right away, others on their next login.
 - **Export / Import** — Save and restore lock configurations as JSON files, including setting and keybinding locks.
 - **Clear All Locks** — Remove all locks at once from both the Settings Config and the Lock Manager.
-- **Live Enforcement** — When the GM changes a lock, all connected clients are updated immediately via socket.
+- **Live Enforcement** — When the GM or another lock manager changes a lock, all connected clients are updated immediately via socket. After installing or updating the module, restart the world once so Foundry enables the module's socket.
 
 ## Lock Behavior
 

@@ -98,8 +98,8 @@ Hooks.once("ready", async () => {
 
     // Register socket listener (game.socket is now available)
     registerSocketListener();
-    // Apply all locks on this client
-    await applyLocks();
+    // Apply all locks on this client; a reload they need happens right away, without asking
+    await applyLocks({ onLoad: true });
     // Check for overlapping module lock settings (Carolingian UI)
     checkConflictOnReady();
 });
