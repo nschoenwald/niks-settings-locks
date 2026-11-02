@@ -80,7 +80,7 @@ A suggested value is applied to each player only once, so players can change it 
 
 ## Languages
 
-English, Deutsch, Français, Español, Italiano, Português (Brasil), 日本語, Polski and Čeština.
+🇬🇧 English · 🇩🇪 Deutsch · 🇫🇷 Français · 🇪🇸 Español · 🇮🇹 Italiano · 🇧🇷 Português (Brasil) · 🇯🇵 日本語 · 🇵🇱 Polski · 🇨🇿 Čeština
 
 All translations were written with AI help and may contain mistakes. Corrections are welcome as an issue or pull request.
 
