@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.4.0] — 2026-11-02
+### Added
+- The module is now available in German, French, Spanish, Italian, Brazilian Portuguese, Japanese, Polish and Czech.
+
 ## [14.3.2] — 2026-10-31
 
 ### Fixed

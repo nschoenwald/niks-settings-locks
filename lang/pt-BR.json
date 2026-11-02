@@ -1,0 +1,110 @@
+{
+  "NSL": {
+    "ModuleTitle": "Nik's Settings Locks",
+    "LockType": {
+      "None": "Desbloqueado",
+      "Soft": "Valor sugerido",
+      "Player": "Bloqueado para jogadores",
+      "Hard": "Bloqueado para todos"
+    },
+    "LockHint": {
+      "None": "Os jogadores podem alterar livremente.",
+      "Soft": "Os jogadores recebem seu valor uma vez e podem alterá-lo depois.",
+      "Player": "Os jogadores ficam no valor bloqueado. Você mantém o seu.",
+      "Hard": "Todos, inclusive você, ficam no valor bloqueado."
+    },
+    "Tooltip": {
+      "ClickToChange": "Clique para alterar o bloqueio.",
+      "LockedByGM": "O mestre bloqueou isto.",
+      "SoftLockedByGM": "O mestre sugeriu este valor. Você pode alterá-lo."
+    },
+    "Conflict": {
+      "BannerTitle": "Conflito detectado: Carolingian UI",
+      "BannerText": "A opção \"Enable client settings lock for core and other modules\" do Carolingian UI está ativada junto com o Nik's Settings Locks. Para evitar ícones duplicados e aplicação dessincronizada, desative-a.",
+      "BannerButton": "Desativar no Carolingian UI",
+      "ResolvedNotification": "Bloqueios genéricos do Carolingian UI desativados. O Nik's Settings Locks agora gerencia seus bloqueios de configurações.",
+      "ReadyWarn": "O bloqueio genérico de configurações do Carolingian UI está ativado. Isso conflita com o Nik's Settings Locks. Abra o gerenciador de bloqueios ou as configurações para resolver."
+    },
+    "Notifications": {
+      "LocksAppliedOne": "{count} bloqueio aplicado.",
+      "LocksAppliedMany": "{count} bloqueios aplicados.",
+      "HardLockBlocked": "Não é possível alterar \"{name}\" — está bloqueado pelo mestre.",
+      "PlayerLockBlocked": "Não é possível alterar \"{name}\" — o mestre bloqueou para os jogadores.",
+      "ExportSuccess": "Bloqueios exportados com sucesso.",
+      "ImportSuccessOne": "{count} bloqueio importado com sucesso.",
+      "ImportSuccessMany": "{count} bloqueios importados com sucesso.",
+      "ImportFailed": "Falha ao importar bloqueios: {error}",
+      "NoLocksToExport": "Nenhum bloqueio para exportar.",
+      "ReloadForcing": "Algumas configurações bloqueadas exigem recarregar para ter efeito. Recarregando agora…",
+      "LocksEnforced": "Os bloqueios foram atualizados pelo mestre.",
+      "SoftLocksReenforcedOne": "{count} valor sugerido reenviado. Jogadores conectados o recebem agora, os demais no próximo login.",
+      "SoftLocksReenforcedMany": "{count} valores sugeridos reenviados. Jogadores conectados os recebem agora, os demais no próximo login.",
+      "NoSoftLocks": "Não há valores sugeridos para reenviar.",
+      "SoftLocksUpdated": "{count} valor(es) sugerido(s) atualizado(s) para os jogadores.",
+      "HardLocksUpdated": "{count} valor(es) bloqueado(s) atualizado(s) para todos.",
+      "NoActiveGM": "Um mestre precisa estar conectado para salvar alterações de bloqueio."
+    },
+    "Prompt": {
+      "SoftTitle": "Atualizar os valores sugeridos?",
+      "SoftDesc": "Você alterou configurações ou controles que têm um valor sugerido para os jogadores. Itens marcados enviam seu novo valor aos jogadores. Itens desmarcados mudam só para você.",
+      "SoftCheckbox": "Sugerir o novo valor aos jogadores",
+      "SoftApply": "Aplicar",
+      "SoftDecline": "Só para mim",
+      "HardTitle": "Alterar valores bloqueados para todos?",
+      "HardDesc": "Você alterou configurações ou controles bloqueados para todos, que portanto também valem para você. Itens marcados atualizam o valor bloqueado para todos. Itens desmarcados voltam ao valor bloqueado.",
+      "HardCheckbox": "Atualizar o valor bloqueado para todos",
+      "HardApply": "Aplicar",
+      "HardDecline": "Desfazer minhas alterações"
+    },
+    "Settings": {
+      "OpenManager": "Abrir gerenciador de bloqueios",
+      "OpenManagerHint": "Abre uma janela dedicada para gerenciar todos os bloqueios de configurações e controles.",
+      "MinRoleName": "Função mínima para gerenciar bloqueios",
+      "MinRoleHint": "A função mínima necessária para ver e gerenciar bloqueios. Funções superiores sempre estão incluídas (por exemplo, escolher Jogador confiável também dá acesso a Mestres assistentes e Mestres).",
+      "AllowSettingsModifyName": "Permitir usuários que podem modificar configurações",
+      "AllowSettingsModifyHint": "Usuários com a permissão do Foundry \"Modificar configurações\" também podem gerenciar bloqueios, qualquer que seja sua função. Gerenciadores de bloqueio não são afetados por valores sugeridos nem por bloqueios de jogadores, então desative isto se você der essa permissão a jogadores comuns.",
+      "RoleGM": "Mestre",
+      "RoleAssistant": "Mestre assistente",
+      "RoleTrusted": "Jogador confiável"
+    },
+    "Manager": {
+      "Title": "Gerenciador de bloqueios de configurações",
+      "FilterPlaceholder": "Filtrar configurações e controles…",
+      "ColumnName": "Nome",
+      "ColumnModule": "Módulo",
+      "ColumnType": "Tipo",
+      "ColumnValue": "Valor",
+      "ColumnLock": "Bloqueio",
+      "TypeSetting": "Configuração",
+      "TypeControl": "Controle",
+      "NoResults": "Nenhum item bloqueável corresponde ao filtro.",
+      "ExportButton": "Exportar bloqueios",
+      "ImportButton": "Importar bloqueios",
+      "ReenforceButton": "Reenviar valores sugeridos",
+      "ClearAllButton": "Remover todos os bloqueios",
+      "ClearAllConfirm": "Tem certeza de que deseja remover todos os bloqueios?",
+      "ShowLockedOnly": "Mostrar só bloqueados",
+      "ShowHiddenOnly": "Mostrar só ocultos",
+      "FilterAll": "Todos",
+      "FilterSettings": "Configurações",
+      "FilterControls": "Controles",
+      "HiddenSettingTag": "menu",
+      "OrphanedTitle": "Bloqueios órfãos",
+      "OrphanedHint": "Estes bloqueios se referem a configurações ou controles que não estão mais registrados. Geralmente o módulo foi desinstalado ou a configuração removida.",
+      "OrphanedColumnKey": "Chave",
+      "OrphanedRemove": "Remover este bloqueio",
+      "OrphanedRemoveAll": "Remover todos os órfãos",
+      "UseMyBindings": "Usar meus atalhos atuais como atalhos bloqueados dos jogadores",
+      "InvalidJSON": "Valor JSON inválido."
+    },
+    "Export": {
+      "Filename": "settings-locks"
+    },
+    "Import": {
+      "DialogTitle": "Importar bloqueios",
+      "ConfirmMessageOne": "Isto importará {count} bloqueio. Bloqueios existentes para os mesmos itens serão sobrescritos. Continuar?",
+      "ConfirmMessageMany": "Isto importará {count} bloqueios. Bloqueios existentes para os mesmos itens serão sobrescritos. Continuar?",
+      "InvalidFormat": "Formato de arquivo inválido. Esperava-se um arquivo JSON exportado do Nik's Settings Locks."
+    }
+  }
+}

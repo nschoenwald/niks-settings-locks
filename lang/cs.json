@@ -1,0 +1,110 @@
+{
+  "NSL": {
+    "ModuleTitle": "Nik's Settings Locks",
+    "LockType": {
+      "None": "Odemčeno",
+      "Soft": "Doporučená hodnota",
+      "Player": "Uzamčeno pro hráče",
+      "Hard": "Uzamčeno pro všechny"
+    },
+    "LockHint": {
+      "None": "Hráči to mohou volně měnit.",
+      "Soft": "Hráči jednou dostanou vaši hodnotu a pak ji mohou změnit.",
+      "Player": "Hráči zůstávají na uzamčené hodnotě. Vy si ponecháte svou.",
+      "Hard": "Všichni včetně vás zůstávají na uzamčené hodnotě."
+    },
+    "Tooltip": {
+      "ClickToChange": "Kliknutím změníte zámek.",
+      "LockedByGM": "PJ toto uzamkl.",
+      "SoftLockedByGM": "PJ doporučil tuto hodnotu. Můžete ji změnit."
+    },
+    "Conflict": {
+      "BannerTitle": "Zjištěn konflikt: Carolingian UI",
+      "BannerText": "V Carolingian UI je spolu s Nik's Settings Locks zapnuta volba \"Enable client settings lock for core and other modules\". Vypněte ji, abyste předešli zdvojeným ikonám a nesynchronizovanému vynucování.",
+      "BannerButton": "Vypnout v Carolingian UI",
+      "ResolvedNotification": "Obecné zámky Carolingian UI vypnuty. Zámky nastavení nyní spravuje Nik's Settings Locks.",
+      "ReadyWarn": "Obecný zámek nastavení v Carolingian UI je zapnutý a koliduje s Nik's Settings Locks. Otevřete správce zámků nebo nastavení a vyřešte to."
+    },
+    "Notifications": {
+      "LocksAppliedOne": "Použit zámek ({count}).",
+      "LocksAppliedMany": "Použité zámky: {count}.",
+      "HardLockBlocked": "„{name}“ nelze změnit — PJ to uzamkl.",
+      "PlayerLockBlocked": "„{name}“ nelze změnit — PJ to uzamkl pro hráče.",
+      "ExportSuccess": "Zámky byly úspěšně exportovány.",
+      "ImportSuccessOne": "Zámek úspěšně importován ({count}).",
+      "ImportSuccessMany": "Úspěšně importované zámky: {count}.",
+      "ImportFailed": "Import zámků se nezdařil: {error}",
+      "NoLocksToExport": "Žádné zámky k exportu.",
+      "ReloadForcing": "Některá uzamčená nastavení se projeví až po opětovném načtení. Načítám znovu…",
+      "LocksEnforced": "PJ aktualizoval zámky.",
+      "SoftLocksReenforcedOne": "Doporučená hodnota znovu odeslána ({count}). Připojení hráči ji dostanou hned, ostatní při příštím přihlášení.",
+      "SoftLocksReenforcedMany": "Znovu odeslané doporučené hodnoty: {count}. Připojení hráči je dostanou hned, ostatní při příštím přihlášení.",
+      "NoSoftLocks": "Nejsou žádné doporučené hodnoty k opětovnému odeslání.",
+      "SoftLocksUpdated": "Aktualizované doporučené hodnoty pro hráče: {count}.",
+      "HardLocksUpdated": "Aktualizované uzamčené hodnoty pro všechny: {count}.",
+      "NoActiveGM": "K uložení změn zámků musí být přihlášen PJ."
+    },
+    "Prompt": {
+      "SoftTitle": "Aktualizovat doporučené hodnoty?",
+      "SoftDesc": "Změnili jste nastavení nebo ovládání, které mají doporučenou hodnotu pro hráče. Zaškrtnuté položky pošlou hráčům vaši novou hodnotu. Nezaškrtnuté se změní jen pro vás.",
+      "SoftCheckbox": "Doporučit hráčům novou hodnotu",
+      "SoftApply": "Použít",
+      "SoftDecline": "Jen pro mě",
+      "HardTitle": "Změnit hodnoty uzamčené pro všechny?",
+      "HardDesc": "Změnili jste nastavení nebo ovládání uzamčená pro všechny, která tedy platí i pro vás. Zaškrtnuté položky aktualizují uzamčenou hodnotu pro všechny. Nezaškrtnuté se vrátí na uzamčenou hodnotu.",
+      "HardCheckbox": "Aktualizovat uzamčenou hodnotu pro všechny",
+      "HardApply": "Použít",
+      "HardDecline": "Vrátit mé změny"
+    },
+    "Settings": {
+      "OpenManager": "Otevřít správce zámků",
+      "OpenManagerHint": "Otevře samostatné okno pro správu všech zámků nastavení a ovládání.",
+      "MinRoleName": "Minimální role pro správu zámků",
+      "MinRoleHint": "Minimální role uživatele potřebná k zobrazení a správě zámků. Vyšší role jsou vždy zahrnuty (např. volba Důvěryhodný hráč dává přístup i Asistentům PJ a Pánům jeskyně).",
+      "AllowSettingsModifyName": "Povolit uživatele, kteří smějí měnit nastavení",
+      "AllowSettingsModifyHint": "Uživatelé s oprávněním Foundry „Měnit nastavení konfigurace“ mohou spravovat zámky bez ohledu na roli. Na správce zámků se nevztahují doporučené hodnoty ani zámky hráčů, proto to vypněte, pokud toto oprávnění dáváte běžným hráčům.",
+      "RoleGM": "Pán jeskyně",
+      "RoleAssistant": "Asistent PJ",
+      "RoleTrusted": "Důvěryhodný hráč"
+    },
+    "Manager": {
+      "Title": "Správce zámků nastavení",
+      "FilterPlaceholder": "Filtrovat nastavení a ovládání…",
+      "ColumnName": "Název",
+      "ColumnModule": "Modul",
+      "ColumnType": "Typ",
+      "ColumnValue": "Hodnota",
+      "ColumnLock": "Zámek",
+      "TypeSetting": "Nastavení",
+      "TypeControl": "Ovládání",
+      "NoResults": "Filtru neodpovídají žádné položky, které lze uzamknout.",
+      "ExportButton": "Exportovat zámky",
+      "ImportButton": "Importovat zámky",
+      "ReenforceButton": "Znovu odeslat doporučené hodnoty",
+      "ClearAllButton": "Odebrat všechny zámky",
+      "ClearAllConfirm": "Opravdu chcete odebrat všechny zámky?",
+      "ShowLockedOnly": "Zobrazit jen uzamčené",
+      "ShowHiddenOnly": "Zobrazit jen skryté",
+      "FilterAll": "Vše",
+      "FilterSettings": "Nastavení",
+      "FilterControls": "Ovládání",
+      "HiddenSettingTag": "nabídka",
+      "OrphanedTitle": "Osiřelé zámky",
+      "OrphanedHint": "Tyto zámky odkazují na nastavení nebo ovládání, která už nejsou registrována. Obvykle to znamená, že byl modul odinstalován nebo nastavení odstraněno.",
+      "OrphanedColumnKey": "Klíč",
+      "OrphanedRemove": "Odebrat tento zámek",
+      "OrphanedRemoveAll": "Odebrat všechny osiřelé",
+      "UseMyBindings": "Použít moje aktuální klávesové zkratky jako uzamčené zkratky hráčů",
+      "InvalidJSON": "Neplatná hodnota JSON."
+    },
+    "Export": {
+      "Filename": "settings-locks"
+    },
+    "Import": {
+      "DialogTitle": "Importovat zámky",
+      "ConfirmMessageOne": "Bude importován zámek ({count}). Stávající zámky stejných položek budou přepsány. Pokračovat?",
+      "ConfirmMessageMany": "Počet zámků k importu: {count}. Stávající zámky stejných položek budou přepsány. Pokračovat?",
+      "InvalidFormat": "Neplatný formát souboru. Očekává se soubor JSON exportovaný z Nik's Settings Locks."
+    }
+  }
+}

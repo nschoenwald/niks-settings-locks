@@ -1,0 +1,110 @@
+{
+  "NSL": {
+    "ModuleTitle": "Nik's Settings Locks",
+    "LockType": {
+      "None": "Entsperrt",
+      "Soft": "Vorgeschlagener Wert",
+      "Player": "Für Spieler gesperrt",
+      "Hard": "Für alle gesperrt"
+    },
+    "LockHint": {
+      "None": "Spieler können das frei ändern.",
+      "Soft": "Spieler erhalten einmal deinen Wert und können ihn danach ändern.",
+      "Player": "Spieler bleiben auf dem gesperrten Wert. Du behältst deinen eigenen.",
+      "Hard": "Alle, auch du, bleiben auf dem gesperrten Wert."
+    },
+    "Tooltip": {
+      "ClickToChange": "Klicken, um die Sperre zu ändern.",
+      "LockedByGM": "Die SL hat dies gesperrt.",
+      "SoftLockedByGM": "Die SL hat diesen Wert vorgeschlagen. Du kannst ihn ändern."
+    },
+    "Conflict": {
+      "BannerTitle": "Konflikt erkannt: Carolingian UI",
+      "BannerText": "In Carolingian UI ist \"Enable client settings lock for core and other modules\" zusammen mit Nik's Settings Locks aktiviert. Bitte deaktiviere es, um doppelte Symbole und unsynchronisierte Durchsetzung zu vermeiden.",
+      "BannerButton": "In Carolingian UI deaktivieren",
+      "ResolvedNotification": "Allgemeine Sperren von Carolingian UI deaktiviert. Nik's Settings Locks verwaltet jetzt deine Einstellungssperren.",
+      "ReadyWarn": "Die allgemeine Einstellungssperre von Carolingian UI ist aktiviert. Das kollidiert mit Nik's Settings Locks. Öffne die Sperrverwaltung oder die Einstellungen, um das zu beheben."
+    },
+    "Notifications": {
+      "LocksAppliedOne": "{count} Sperre angewendet.",
+      "LocksAppliedMany": "{count} Sperren angewendet.",
+      "HardLockBlocked": "\"{name}\" kann nicht geändert werden – die SL hat es gesperrt.",
+      "PlayerLockBlocked": "\"{name}\" kann nicht geändert werden – die SL hat es für Spieler gesperrt.",
+      "ExportSuccess": "Sperren erfolgreich exportiert.",
+      "ImportSuccessOne": "{count} Sperre erfolgreich importiert.",
+      "ImportSuccessMany": "{count} Sperren erfolgreich importiert.",
+      "ImportFailed": "Import der Sperren fehlgeschlagen: {error}",
+      "NoLocksToExport": "Keine Sperren zum Exportieren.",
+      "ReloadForcing": "Einige gesperrte Einstellungen werden erst nach einem Neuladen wirksam. Lade jetzt neu…",
+      "LocksEnforced": "Die SL hat die Sperren aktualisiert.",
+      "SoftLocksReenforcedOne": "{count} vorgeschlagener Wert erneut gesendet. Verbundene Spieler erhalten ihn jetzt, andere bei der nächsten Anmeldung.",
+      "SoftLocksReenforcedMany": "{count} vorgeschlagene Werte erneut gesendet. Verbundene Spieler erhalten sie jetzt, andere bei der nächsten Anmeldung.",
+      "NoSoftLocks": "Es gibt keine vorgeschlagenen Werte zum erneuten Senden.",
+      "SoftLocksUpdated": "{count} vorgeschlagene(n) Wert(e) für Spieler aktualisiert.",
+      "HardLocksUpdated": "{count} gesperrte(n) Wert(e) für alle aktualisiert.",
+      "NoActiveGM": "Zum Speichern von Sperränderungen muss eine SL angemeldet sein."
+    },
+    "Prompt": {
+      "SoftTitle": "Vorgeschlagene Werte aktualisieren?",
+      "SoftDesc": "Du hast Einstellungen oder Steuerungen geändert, die einen vorgeschlagenen Wert für Spieler haben. Angehakte Einträge senden deinen neuen Wert an die Spieler. Nicht angehakte ändern sich nur für dich.",
+      "SoftCheckbox": "Neuen Wert den Spielern vorschlagen",
+      "SoftApply": "Anwenden",
+      "SoftDecline": "Nur für mich",
+      "HardTitle": "Für alle gesperrte Werte ändern?",
+      "HardDesc": "Du hast Einstellungen oder Steuerungen geändert, die für alle gesperrt sind und daher auch für dich gelten. Angehakte Einträge aktualisieren den gesperrten Wert für alle. Nicht angehakte werden auf den gesperrten Wert zurückgesetzt.",
+      "HardCheckbox": "Gesperrten Wert für alle aktualisieren",
+      "HardApply": "Anwenden",
+      "HardDecline": "Meine Änderungen rückgängig machen"
+    },
+    "Settings": {
+      "OpenManager": "Sperrverwaltung öffnen",
+      "OpenManagerHint": "Öffnet ein eigenes Fenster zur Verwaltung aller Einstellungs- und Steuerungssperren.",
+      "MinRoleName": "Mindestrolle für die Sperrverwaltung",
+      "MinRoleHint": "Die Mindestrolle, die Sperren sehen und verwalten darf. Höhere Rollen sind immer eingeschlossen (z. B. gibt Vertrauter Spieler auch Assistenz-Spielleitern und Spielleitern Zugriff).",
+      "AllowSettingsModifyName": "Benutzer zulassen, die Einstellungen ändern dürfen",
+      "AllowSettingsModifyHint": "Benutzer mit Foundrys Berechtigung \"Konfigurationseinstellungen ändern\" können unabhängig von ihrer Rolle ebenfalls Sperren verwalten. Sperrverwalter sind von vorgeschlagenen Werten und Spielersperren nicht betroffen – schalte dies also aus, wenn du normalen Spielern diese Berechtigung gibst.",
+      "RoleGM": "Spielleiter",
+      "RoleAssistant": "Assistenz-Spielleiter",
+      "RoleTrusted": "Vertrauter Spieler"
+    },
+    "Manager": {
+      "Title": "Verwaltung der Einstellungssperren",
+      "FilterPlaceholder": "Einstellungen und Steuerungen filtern…",
+      "ColumnName": "Name",
+      "ColumnModule": "Modul",
+      "ColumnType": "Typ",
+      "ColumnValue": "Wert",
+      "ColumnLock": "Sperre",
+      "TypeSetting": "Einstellung",
+      "TypeControl": "Steuerung",
+      "NoResults": "Keine sperrbaren Einträge passen zum Filter.",
+      "ExportButton": "Sperren exportieren",
+      "ImportButton": "Sperren importieren",
+      "ReenforceButton": "Vorgeschlagene Werte erneut senden",
+      "ClearAllButton": "Alle Sperren entfernen",
+      "ClearAllConfirm": "Willst du wirklich alle Sperren entfernen?",
+      "ShowLockedOnly": "Nur gesperrte anzeigen",
+      "ShowHiddenOnly": "Nur ausgeblendete anzeigen",
+      "FilterAll": "Alle",
+      "FilterSettings": "Einstellungen",
+      "FilterControls": "Steuerungen",
+      "HiddenSettingTag": "Menü",
+      "OrphanedTitle": "Verwaiste Sperren",
+      "OrphanedHint": "Diese Sperren verweisen auf Einstellungen oder Steuerungen, die nicht mehr registriert sind. Meist wurde das Modul deinstalliert oder die Einstellung entfernt.",
+      "OrphanedColumnKey": "Schlüssel",
+      "OrphanedRemove": "Diese Sperre entfernen",
+      "OrphanedRemoveAll": "Alle verwaisten entfernen",
+      "UseMyBindings": "Meine aktuellen Tastenbelegungen als gesperrte Spielerbelegungen verwenden",
+      "InvalidJSON": "Ungültiger JSON-Wert."
+    },
+    "Export": {
+      "Filename": "settings-locks"
+    },
+    "Import": {
+      "DialogTitle": "Sperren importieren",
+      "ConfirmMessageOne": "Dies importiert {count} Sperre. Vorhandene Sperren für dieselben Einträge werden überschrieben. Fortfahren?",
+      "ConfirmMessageMany": "Dies importiert {count} Sperren. Vorhandene Sperren für dieselben Einträge werden überschrieben. Fortfahren?",
+      "InvalidFormat": "Ungültiges Dateiformat. Erwartet wird eine aus Nik's Settings Locks exportierte JSON-Datei."
+    }
+  }
+}
