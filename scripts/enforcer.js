@@ -430,7 +430,7 @@ function _wrapSettingsSet() {
         }
 
         return wrapped(namespace, key, value, ...rest);
-    }, "WRAPPER");
+    }, "MIXED"); // MIXED: a blocked write with no stored lock value returns without calling the original
 }
 
 /**
@@ -472,7 +472,7 @@ function _wrapKeybindingsSet() {
         }
 
         return wrapped(namespace, action, bindings, ...rest);
-    }, "WRAPPER");
+    }, "MIXED"); // MIXED: a blocked change with no stored lock value returns without calling the original
 }
 
 /**
@@ -492,7 +492,7 @@ function _wrapReloadConfirm() {
         } finally {
             if (_reloadConfirm === entry) _reloadConfirm = null;
         }
-    }, "WRAPPER");
+    }, "MIXED"); // MIXED: a request that joins the open prompt returns its promise without calling the original
 }
 
 /**

@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.4.3] — 2026-11-07
+### Fixed
+- **Lock prompt and reload prompt** — Saving Configure Settings while a lock update prompt was already open could show libWrapper errors, open a second reload prompt, and turn off the module's protection of locked settings until the next reload. Locked settings and keybindings now stay protected for the whole session.
+
 ## [14.4.2] — 2026-11-04
 ### Removed
 - Removed the French, Spanish, Italian, Brazilian Portuguese, Japanese, Polish and Czech translations. They were machine-translated and never checked by a native speaker. Players who use Foundry in one of these languages now see this module in English. Translations by native speakers are welcome as an issue or pull request.
