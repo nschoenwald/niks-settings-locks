@@ -30,6 +30,7 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 - **Export / Import** — Save and restore lock configurations as JSON files, including setting and keybinding locks.
 - **Clear All Locks** — Remove all locks at once from both the Settings Config and the Lock Manager.
 - **Live Enforcement** — When the GM or another lock manager changes a lock, all connected clients are updated immediately via socket. After installing or updating the module, restart the world once so Foundry enables the module's socket.
+- **Console Log** — Every client writes lock changes to the browser console (F12): which locks were added, removed or changed, from what to what, and by whom. On load, it lists the locks that changed since that browser last connected. When locks change a client's own settings or controls, the console lists each one with its old and new value, and still shows that list after a reload the locks forced.
 
 ## Lock Behavior
 

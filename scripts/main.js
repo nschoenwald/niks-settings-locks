@@ -14,6 +14,7 @@ import { initSettingsUI } from "./settings-ui.js";
 import { initControlsUI } from "./controls-ui.js";
 import { LockManagerApp } from "./lock-manager.js";
 import { checkConflictOnReady } from "./conflict-guard.js";
+import { initLockLog, logLockMapChange } from "./lock-log.js";
 
 // ---------------------------------------------------------------------------
 //  Initialization
@@ -30,7 +31,9 @@ Hooks.once("init", () => {
         config: false,
         type: Object,
         default: {},
-        restricted: true
+        restricted: true,
+        // Runs on every client when the lock map is saved: log what changed
+        onChange: (_value, _options, userId) => logLockMapChange(userId)
     });
 
     // Register the minimum role setting
@@ -95,6 +98,9 @@ Hooks.once("ready", async () => {
         const menu = game.settings.menus.get(`${MODULE_ID}.lockManager`);
         if (menu) menu.restricted = false;
     }
+
+    // Base for the lock change log in the console
+    initLockLog();
 
     // Register socket listener (game.socket is now available)
     registerSocketListener();

@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.5.0] — 2026-11-11
+### Added
+- **Lock changes in the console** — When someone changes the locks, every client now shows in the browser console (F12) which locks were added, removed or changed, what they were before and after, and who made the change. When you log in, the console also lists the locks that changed since you last played in this browser. When locks change your own settings or controls, the console lists each one with its old and new value instead of only a count, and still shows that list after a reload the locks forced on login.
+
 ## [14.4.3] — 2026-11-07
 ### Fixed
 - **Lock prompt and reload prompt** — Saving Configure Settings while a lock update prompt was already open could show libWrapper errors, open a second reload prompt, and turn off the module's protection of locked settings until the next reload. Locked settings and keybindings now stay protected for the whole session.

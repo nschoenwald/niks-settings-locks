@@ -14,6 +14,7 @@ import {
     canManageLocks, getEditableBindings, LOCKS_CHANGED_HOOK
 } from "./lock-store.js";
 import { promptLockUpdates } from "./lock-update-prompt.js";
+import { formatLogValue } from "./lock-log.js";
 
 /** Track which keys (settings + keybindings) are currently hard-locked. */
 const _hardLockedKeys = new Set();
@@ -30,6 +31,12 @@ const _lockUpdateTimeouts = { soft: null, hard: null };
 
 /** Lock update prompts that are open; a reload prompt waits for them (see _wrapReloadConfirm). */
 const _openLockPrompts = new Set();
+
+/** sessionStorage key holding the "Applied … locked item(s)" log of a load that forced a reload, shown again after it. */
+const RELOAD_LOG_KEY = `${MODULE_ID}.reloadLog`;
+
+/** The last "Applied … locked item(s)" log on this client, kept for a forced reload. */
+let _lastAppliedLog = null;
 
 /** The reload prompt currently shown, so a second request joins it instead of stacking another. */
 let _reloadConfirm = null;
@@ -104,6 +111,10 @@ export async function applyLocks({ onLoad = false } = {}) {
     const entries = Object.entries(map);
     const changedKeys = new Set();
 
+    // The console is cleared by a forced reload: show what the load before it changed
+    if (onLoad) _showLogFromBeforeReload();
+    _lastAppliedLog = null;
+
     // Clear the hard-lock set and rebuild it
     _hardLockedKeys.clear();
 
@@ -113,16 +124,22 @@ export async function applyLocks({ onLoad = false } = {}) {
     }
 
     let needsReload = false;
+    const changeLines = [];
 
     for (const [lockKey, lock] of entries) {
+        const previous = _currentValue(lockKey);
         const result = await _applyLockEntry(lockKey, lock);
-        if (result.applied) changedKeys.add(lockKey);
+        if (result.applied) {
+            changedKeys.add(lockKey);
+            changeLines.push(`${lockKey} (${lock.type} lock): ${formatLogValue(lockKey, previous)} → ${formatLogValue(lockKey, lock.value)}`);
+        }
         if (result.needsReload) needsReload = true;
     }
 
     const applied = changedKeys.size;
     if (applied > 0) {
-        console.log(`${MODULE_ID} | Applied ${applied} locked item(s).`);
+        _lastAppliedLog = `${MODULE_ID} | Applied ${applied} locked item(s):\n  ${changeLines.join("\n  ")}`;
+        console.log(_lastAppliedLog);
         const localeKey = applied === 1 ? "NSL.Notifications.LocksAppliedOne" : "NSL.Notifications.LocksAppliedMany";
         ui.notifications?.info(game.i18n.format(localeKey, { count: applied }));
     }
@@ -188,6 +205,22 @@ export function isHardLocked(key) {
 // ---------------------------------------------------------------------------
 
 /**
+ * This client's current value for a lock key, for the console log.
+ * @param {string} lockKey  "namespace.key" or "kb:namespace.action"
+ * @returns {*} The value, or undefined if it can't be read
+ */
+function _currentValue(lockKey) {
+    try {
+        if (lockKey.startsWith(KB_PREFIX)) return getEditableBindings(lockKey.slice(KB_PREFIX.length));
+        const config = game.settings.settings.get(lockKey);
+        if (!config || (config.scope !== "client" && config.scope !== "user")) return undefined;
+        return game.settings.get(config.namespace, config.key);
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Apply one lock entry, dispatching to the setting or keybinding handler.
  * @returns {Promise<{applied: number, needsReload: boolean}>}
  */
@@ -230,6 +263,20 @@ function _clearReloadLoopGuard() {
 }
 
 /**
+ * Log again what the locks changed on the load before a forced reload, which cleared the console.
+ */
+function _showLogFromBeforeReload() {
+    let log;
+    try {
+        log = sessionStorage.getItem(RELOAD_LOG_KEY);
+        sessionStorage.removeItem(RELOAD_LOG_KEY);
+    } catch {
+        return;
+    }
+    if (log) console.log(`${MODULE_ID} | Before the last reload:\n${log}`);
+}
+
+/**
  * Handle a lock that changed a setting which requires a reload.
  * Players are reloaded automatically; managers are asked first so they never lose work,
  * except on world load (`force`), where there is no work to lose and everyone is reloaded.
@@ -242,6 +289,13 @@ function _handleReload({ force = false } = {}) {
         return;
     }
     ui.notifications?.warn(game.i18n.localize("NSL.Notifications.ReloadForcing"));
+    if (_lastAppliedLog) {
+        try {
+            sessionStorage.setItem(RELOAD_LOG_KEY, _lastAppliedLog);
+        } catch {
+            // Storage unavailable: the log is lost with the reload
+        }
+    }
     setTimeout(() => window.location.reload(), 1500);
 }
 
