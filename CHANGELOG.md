@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.5.1] — 2026-11-11
+### Fixed
+- **Suggested values with several worlds** — Players who play in more than one world in the same browser now get every world's suggested values. Before, a suggested value for a setting in one world could stop another world's suggested value for the same setting from ever reaching them. Values that players already received and changed afterwards are not sent again.
+
 ## [14.5.0] — 2026-11-11
 ### Added
 - **Lock changes in the console** — When someone changes the locks, every client now shows in the browser console (F12) which locks were added, removed or changed, what they were before and after, and who made the change. When you log in, the console also lists the locks that changed since you last played in this browser. When locks change your own settings or controls, the console lists each one with its old and new value instead of only a count, and still shows that list after a reload the locks forced on login.

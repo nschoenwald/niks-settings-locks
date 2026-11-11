@@ -5,7 +5,7 @@
  * The lock map is a plain object keyed by "namespace.key" with entries:
  *   { type: "soft"|"hard"|"player", value: any, rev: number }
  *
- * Soft lock revisions are tracked per-client in localStorage so that
+ * Soft lock revisions are tracked per client and world in localStorage so that
  * a soft lock is only applied once per revision — players can override
  * permanently until the GM bumps the revision.
  */
@@ -26,7 +26,17 @@ export const QUERY_SET_LOCK_MAP = `${MODULE_ID}.setLockMap`;
 /** Hook fired on a client after it re-applied locks from a GM broadcast. Receives the Set of changed lock keys. */
 export const LOCKS_CHANGED_HOOK = `${MODULE_ID}.locksChanged`;
 
-const LOCAL_STORAGE_KEY = `${MODULE_ID}.softLockRevs`;
+/** Before 14.5.1 the applied soft-lock revisions were stored once per browser, shared by every world. */
+const LEGACY_SOFT_REVS_KEY = `${MODULE_ID}.softLockRevs`;
+
+/**
+ * localStorage key of the applied soft-lock revisions in this world.
+ * localStorage is shared by every world on the server, and lock revisions count up per world.
+ * @returns {string}
+ */
+function _softRevsKey() {
+    return `${MODULE_ID}.softLockRevs.${game.world.id}`;
+}
 
 // ---------------------------------------------------------------------------
 //  Role Check
@@ -210,10 +220,42 @@ export function stripUneditableBindings(actionKey, bindings) {
  */
 export function getSoftLockRevs() {
     try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
+        const raw = localStorage.getItem(_softRevsKey());
+        return raw ? JSON.parse(raw) : _migrateSoftLockRevs();
     } catch {
         return {};
+    }
+}
+
+/**
+ * Build this world's soft-lock revisions from the old record shared by all worlds, on the first load after updating.
+ * Without it, every player would get every suggested value again and lose the changes they made.
+ * Only entries that fit this world's soft locks are taken: a revision above the lock's own came from another world,
+ * and skipping it lets that suggested value reach the player once, which the shared record wrongly prevented.
+ * The old record is kept for the other worlds.
+ * @returns {Object<string, number>}
+ */
+function _migrateSoftLockRevs() {
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_SOFT_REVS_KEY) ?? "{}") ?? {};
+    const map = getLockMap();
+    const revs = {};
+    for (const [key, rev] of Object.entries(legacy)) {
+        const lock = map[key];
+        if (lock?.type === "soft" && Number.isFinite(rev) && rev <= (lock.rev ?? 0)) revs[key] = rev;
+    }
+    localStorage.setItem(_softRevsKey(), JSON.stringify(revs));
+    return revs;
+}
+
+/**
+ * Save this world's soft-lock revisions.
+ * @param {Object<string, number>} revs
+ */
+function _storeSoftLockRevs(revs) {
+    try {
+        localStorage.setItem(_softRevsKey(), JSON.stringify(revs));
+    } catch {
+        // Storage unavailable: the suggested value is offered again on the next load
     }
 }
 
@@ -225,7 +267,7 @@ export function getSoftLockRevs() {
 export function markSoftLockApplied(settingKey, rev) {
     const revs = getSoftLockRevs();
     revs[settingKey] = rev;
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(revs));
+    _storeSoftLockRevs(revs);
 }
 
 /**
@@ -246,7 +288,7 @@ export function shouldApplySoftLock(settingKey, rev) {
 export function clearSoftLockRev(settingKey) {
     const revs = getSoftLockRevs();
     delete revs[settingKey];
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(revs));
+    _storeSoftLockRevs(revs);
 }
 
 // ---------------------------------------------------------------------------

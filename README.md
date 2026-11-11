@@ -45,6 +45,8 @@ Requires [libWrapper](https://foundryvtt.com/packages/lib-wrapper).
 
 Locking an unlocked item uses your current value. Changing an existing lock to another option keeps its locked value; switching to **Locked for everyone** applies that value to you as well.
 
+**Several worlds on one server:** Foundry saves client settings and controls in the browser, so every world on the same server shares them. If two worlds lock the same item to different values, each world sets its own value again whenever it's loaded. Suggested values are tracked per world, so each world's suggested values reach players once.
+
 ### Who can manage locks
 
 Two settings control who can manage locks:
