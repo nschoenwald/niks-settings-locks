@@ -442,7 +442,7 @@ async function _applyKeybindingLock(lockKey, lock) {
  * Wrap ClientSettings.prototype.set to block hard-locked setting changes.
  */
 function _wrapSettingsSet() {
-    libWrapper.register(MODULE_ID, "ClientSettings.prototype.set", async function (wrapped, namespace, key, value, ...rest) {
+    libWrapper.register(MODULE_ID, "foundry.helpers.ClientSettings.prototype.set", async function (wrapped, namespace, key, value, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, key, value, ...rest);
 
         const settingKey = `${namespace}.${key}`;
@@ -491,7 +491,7 @@ function _wrapSettingsSet() {
  * Wrap ClientKeybindings.prototype.set to block hard-locked keybinding changes.
  */
 function _wrapKeybindingsSet() {
-    libWrapper.register(MODULE_ID, "ClientKeybindings.prototype.set", async function (wrapped, namespace, action, bindings, ...rest) {
+    libWrapper.register(MODULE_ID, "foundry.helpers.interaction.ClientKeybindings.prototype.set", async function (wrapped, namespace, action, bindings, ...rest) {
         if (_bypassEnforcement) return wrapped(namespace, action, bindings, ...rest);
         
         const lockKey = `${KB_PREFIX}${namespace}.${action}`;

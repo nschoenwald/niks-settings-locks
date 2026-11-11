@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.5.2] — 2026-11-11
+### Fixed
+- **Console warnings** — The module no longer fills the browser console with deprecation warnings from Foundry V14 on load and when locks change.
+
 ## [14.5.1] — 2026-11-11
 ### Fixed
 - **Suggested values with several worlds** — Players who play in more than one world in the same browser now get every world's suggested values. Before, a suggested value for a setting in one world could stop another world's suggested value for the same setting from ever reaching them. Values that players already received and changed afterwards are not sent again.

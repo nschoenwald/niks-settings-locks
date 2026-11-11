@@ -92,7 +92,7 @@ function _diffLines(before, after) {
             lines.push(`+ ${key}: added ${next.type} lock = ${formatLogValue(key, next.value)}`);
         } else if (!next) {
             lines.push(`- ${key}: removed (was ${prev.type} lock = ${formatLogValue(key, prev.value)})`);
-        } else if (prev.type !== next.type || !foundry.utils.objectsEqual({ v: prev.value }, { v: next.value })) {
+        } else if (prev.type !== next.type || !foundry.utils.equals(prev.value, next.value)) {
             lines.push(`~ ${key}: ${prev.type} lock = ${formatLogValue(key, prev.value)} → ${next.type} lock = ${formatLogValue(key, next.value)}`);
         } else if (prev.rev !== next.rev) {
             lines.push(`↻ ${key}: ${next.type} lock re-sent = ${formatLogValue(key, next.value)}`);
