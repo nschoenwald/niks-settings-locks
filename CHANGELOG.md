@@ -2,6 +2,10 @@
 
 All notable changes to Nik's Settings Locks are documented in this file.
 
+## [14.6.0] — 2026-11-22
+### Added
+- **French translation**: The module is now available in French, reviewed by Kameleau. Thank you!
+
 ## [14.5.2] — 2026-11-11
 ### Fixed
 - **Console warnings** — The module no longer fills the browser console with deprecation warnings from Foundry V14 on load and when locks change.

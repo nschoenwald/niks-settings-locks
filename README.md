@@ -83,7 +83,7 @@ A suggested value is applied to each player only once, so players can change it 
 
 ## Languages
 
-🇬🇧 English · 🇩🇪 Deutsch
+🇬🇧 English · 🇩🇪 Deutsch · 🇫🇷 Français (thanks Kameleau)
 
 Translations into other languages by native speakers are welcome as an issue or pull request.
 
